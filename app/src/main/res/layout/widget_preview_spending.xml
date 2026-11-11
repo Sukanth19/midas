@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="HardcodedText,ContentDescription,DisableBaselineAlignment,SmallSp,UseCompoundDrawables"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_preview_bg" android:orientation="horizontal"
+    android:gravity="center_vertical" android:padding="16dp">
+
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Spent this month"
+            android:textColor="@color/widget_on_surface_variant" android:textSize="12sp" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="₹26.8k"
+            android:textColor="@color/widget_on_surface" android:textSize="30sp" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="8dp" android:layout_marginTop="8dp" android:orientation="horizontal">
+            <ImageView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="67" android:src="@drawable/widget_preview_bar_hi" android:scaleType="fitXY" />
+            <ImageView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="33" android:src="@drawable/widget_preview_track" android:scaleType="fitXY" />
+        </LinearLayout>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="₹13.2k left"
+            android:textColor="@color/widget_on_surface_variant" android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp"
+        android:orientation="vertical" android:gravity="center_horizontal">
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="56dp" android:orientation="horizontal" android:gravity="bottom">
+            <ImageView android:layout_width="10dp" android:layout_height="22dp" android:src="@drawable/widget_preview_bar" android:scaleType="fitXY" />
+            <ImageView android:layout_width="10dp" android:layout_height="6dp" android:layout_marginStart="5dp" android:src="@drawable/widget_preview_bar" android:scaleType="fitXY" />
+            <ImageView android:layout_width="10dp" android:layout_height="41dp" android:layout_marginStart="5dp" android:src="@drawable/widget_preview_bar" android:scaleType="fitXY" />
+            <ImageView android:layout_width="10dp" android:layout_height="11dp" android:layout_marginStart="5dp" android:src="@drawable/widget_preview_bar" android:scaleType="fitXY" />
+            <ImageView android:layout_width="10dp" android:layout_height="4dp" android:layout_marginStart="5dp" android:src="@drawable/widget_preview_bar" android:scaleType="fitXY" />
+            <ImageView android:layout_width="10dp" android:layout_height="56dp" android:layout_marginStart="5dp" android:src="@drawable/widget_preview_bar" android:scaleType="fitXY" />
+            <ImageView android:layout_width="10dp" android:layout_height="18dp" android:layout_marginStart="5dp" android:src="@drawable/widget_preview_bar_hi" android:scaleType="fitXY" />
+        </LinearLayout>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Last 7 days"
+            android:textColor="@color/widget_on_surface_variant" android:textSize="10sp" />
+    </LinearLayout>
+</LinearLayout>

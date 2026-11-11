@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Midas</string>
+    <string name="widget_spending_label">Spending</string>
+    <string name="widget_spending_desc">This month\'s spending, budget left and the last 7 days</string>
+    <string name="widget_grocery_label">Grocery list</string>
+    <string name="widget_grocery_desc">Tick off this week\'s groceries right from your home screen</string>
+    <string name="widget_bills_label">Upcoming bills</string>
+    <string name="widget_bills_desc">Rent and bills that are due next</string>
+    <string name="widget_quickadd_label">Quick add</string>
+    <string name="widget_quickadd_desc">One tap to record an expense</string>
+    <string name="shortcut_add_short">Add expense</string>
+    <string name="shortcut_add_long">Add an expense</string>
+    <string name="shortcut_grocery_short">Groceries</string>
+    <string name="shortcut_grocery_long">Open weekly groceries</string>
+    <string name="shortcut_bills_short">Bills</string>
+    <string name="shortcut_bills_long">Open bills and rent</string>
+</resources>

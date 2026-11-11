@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="add_expense" android:enabled="true" android:icon="@drawable/ic_shortcut_add"
+        android:shortcutShortLabel="@string/shortcut_add_short" android:shortcutLongLabel="@string/shortcut_add_long">
+        <intent android:action="dev.suks.midas.ADD_EXPENSE" android:targetPackage="dev.suks.midas" android:targetClass="dev.suks.midas.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="groceries" android:enabled="true" android:icon="@drawable/ic_shortcut_cart"
+        android:shortcutShortLabel="@string/shortcut_grocery_short" android:shortcutLongLabel="@string/shortcut_grocery_long">
+        <intent android:action="dev.suks.midas.OPEN_GROCERIES" android:targetPackage="dev.suks.midas" android:targetClass="dev.suks.midas.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="bills" android:enabled="true" android:icon="@drawable/ic_shortcut_receipt"
+        android:shortcutShortLabel="@string/shortcut_bills_short" android:shortcutLongLabel="@string/shortcut_bills_long">
+        <intent android:action="dev.suks.midas.OPEN_BILLS" android:targetPackage="dev.suks.midas" android:targetClass="dev.suks.midas.MainActivity" />
+    </shortcut>
+</shortcuts>

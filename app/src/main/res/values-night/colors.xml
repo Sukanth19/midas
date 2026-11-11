@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="window_background">#17130B</color>
+    <color name="widget_bg">#1F1B13</color>
+    <color name="widget_on_surface">#EBE1D4</color>
+    <color name="widget_on_surface_variant">#CFC5B4</color>
+    <color name="widget_primary">#E6C449</color>
+    <color name="widget_primary_container">#584400</color>
+    <color name="widget_on_primary_container">#FFE08A</color>
+    <color name="widget_tertiary_container">#304D34</color>
+    <color name="widget_on_tertiary_container">#C8ECC8</color>
+    <color name="widget_track">#39342B</color>
+    <color name="widget_outline">#989080</color>
+    <color name="widget_warning">#FFB870</color>
+</resources>

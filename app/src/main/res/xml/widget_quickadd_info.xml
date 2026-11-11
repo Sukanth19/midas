@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedAttribute"
+    android:description="@string/widget_quickadd_desc"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="40dp" android:minHeight="40dp"
+    android:minResizeWidth="40dp" android:minResizeHeight="40dp"
+    android:targetCellWidth="1" android:targetCellHeight="1"
+    android:resizeMode="none"
+    android:previewImage="@drawable/widget_preview_quickadd"
+    android:previewLayout="@layout/widget_preview_quickadd"
+    android:updatePeriodMillis="3600000"
+    android:widgetCategory="home_screen" />
