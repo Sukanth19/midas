@@ -13,3 +13,6 @@
 *.jks
 *.keystore
 keystore.properties
+
+# local agent notes
+CLAUDE.md
