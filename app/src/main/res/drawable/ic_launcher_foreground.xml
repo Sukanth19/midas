@@ -1,18 +1,18 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <!-- gold coin -->
-    <path android:pathData="M54,54m-27,0a27,27 0,1 1,54 0a27,27 0,1 1,-54 0">
+    <!-- A rising dark M (a chart going up) on gold, whose peak catches a glint: the Midas touch. -->
+    <path android:fillColor="#00000000" android:strokeColor="#FF2B1D00" android:strokeWidth="9.5"
+        android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M34,70L34,50L50,64L72,39L72,70" />
+    <!-- soft glow behind the glint -->
+    <path android:pathData="M72,38m-16,0a16,16 0,1 1,32 0a16,16 0,1 1,-32 0">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="30" android:startY="28" android:endX="78" android:endY="80">
-                <item android:offset="0" android:color="#FFFFEDA8" />
-                <item android:offset="0.55" android:color="#FFF2C94C" />
-                <item android:offset="1" android:color="#FFB8860B" />
+            <gradient android:type="radial" android:centerX="72" android:centerY="38" android:gradientRadius="16">
+                <item android:offset="0" android:color="#99FFFFFF" />
+                <item android:offset="1" android:color="#00FFFFFF" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- inner rim -->
-    <path android:fillColor="#00000000" android:strokeColor="#66584400" android:strokeWidth="1.6"
-        android:pathData="M54,54m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
-    <!-- M -->
-    <path android:fillColor="#FF3D2E00" android:pathData="M41.5,66V42h5.6l6.9,9.6L60.9,42h5.6v24h-6V52.4l-6.5,8.8l-6.5,-8.8V66z" />
+    <!-- four-point glint -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M72,28Q74.2,35.8 82,38Q74.2,40.2 72,48Q69.8,40.2 62,38Q69.8,35.8 72,28Z" />
 </vector>
