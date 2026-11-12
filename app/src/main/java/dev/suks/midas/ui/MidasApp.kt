@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -72,8 +73,17 @@ private val tabs = listOf(
     Tab("Insights", InsightsRoute, InsightsRoute::class, Icons.Outlined.Insights, Icons.Rounded.Insights),
 )
 
+/**
+ * [workspaceKey] identifies the open workspace. When it changes the whole navigation graph is
+ * rebuilt, so every screen and ViewModel starts fresh against the new workspace's data.
+ */
 @Composable
-fun MidasApp(pendingAction: String? = null, onActionHandled: () -> Unit = {}) {
+fun MidasApp(workspaceKey: String = "", pendingAction: String? = null, onActionHandled: () -> Unit = {}) {
+    key(workspaceKey) { MidasNav(pendingAction, onActionHandled) }
+}
+
+@Composable
+private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val destination = entry?.destination

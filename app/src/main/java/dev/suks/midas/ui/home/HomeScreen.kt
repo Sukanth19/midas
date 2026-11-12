@@ -39,6 +39,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -54,6 +57,7 @@ import dev.suks.midas.data.Bill
 import dev.suks.midas.data.Category
 import dev.suks.midas.data.Settings
 import dev.suks.midas.data.Transaction
+import dev.suks.midas.data.Workspace
 import dev.suks.midas.domain.BudgetProgress
 import dev.suks.midas.domain.Budgets
 import dev.suks.midas.domain.CategoryShare
@@ -77,6 +81,9 @@ import dev.suks.midas.ui.stateOf
 import dev.suks.midas.ui.theme.HeroAmount
 import dev.suks.midas.ui.theme.money
 import dev.suks.midas.ui.transactions.TransactionRow
+import dev.suks.midas.ui.workspaces.WorkspaceChip
+import dev.suks.midas.ui.workspaces.WorkspaceSheet
+import dev.suks.midas.ui.workspaces.rememberWorkspaces
 import kotlinx.coroutines.flow.combine
 import java.time.LocalDate
 import java.time.LocalTime
@@ -145,7 +152,16 @@ fun HomeScreen(
 ) {
     val vm = midasViewModel { HomeViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
-    HomeContent(state, onAdd, onOpenTransaction, onSeeAll, onBudgets, onBills, onGroceries, onSettings)
+    val workspacesVm = rememberWorkspaces()
+    val workspaces by workspacesVm.workspaces.collectAsStateWithLifecycle()
+    val activeId by workspacesVm.activeId.collectAsStateWithLifecycle()
+    var switching by remember { mutableStateOf(false) }
+    HomeContent(
+        state, onAdd, onOpenTransaction, onSeeAll, onBudgets, onBills, onGroceries, onSettings,
+        workspace = workspaces.firstOrNull { it.id == activeId },
+        onWorkspaces = { switching = true },
+    )
+    if (switching) WorkspaceSheet(workspacesVm, onDismiss = { switching = false })
 }
 
 private fun greeting(now: LocalTime = LocalTime.now()) = when (now.hour) {
@@ -160,6 +176,7 @@ fun HomeContent(
     state: HomeState,
     onAdd: () -> Unit = {}, onOpenTransaction: (Long) -> Unit = {}, onSeeAll: () -> Unit = {}, onBudgets: () -> Unit = {},
     onBills: () -> Unit = {}, onGroceries: () -> Unit = {}, onSettings: () -> Unit = {},
+    workspace: Workspace? = null, onWorkspaces: () -> Unit = {},
 ) {
     val scroll = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     Scaffold(
@@ -172,7 +189,10 @@ fun HomeContent(
                         Text(Dates.monthTitle(YearMonth.from(state.today)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
-                actions = { IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, "Settings") } },
+                actions = {
+                    if (workspace != null) WorkspaceChip(workspace, onWorkspaces)
+                    IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, "Settings") }
+                },
                 scrollBehavior = scroll,
             )
         },

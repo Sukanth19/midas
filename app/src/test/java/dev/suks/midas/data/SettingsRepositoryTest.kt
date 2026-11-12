@@ -53,4 +53,25 @@ class SettingsRepositoryTest {
         r.setMonthlyBudget(-100)
         assertEquals(0L, r.current().monthlyBudgetMinor)
     }
+
+    @Test fun `split stores keep money settings per workspace and the rest shared`() = runTest {
+        fun store(name: String) = PreferenceDataStoreFactory.create(scope = scope) { tmp.root.resolve("$name.preferences_pb") }
+        val global = store("settings")
+        val mine = SettingsRepository(global, global)
+        val theirs = SettingsRepository(global, store("settings-friend"))
+        mine.setCurrency("USD")
+        mine.setMonthlyBudget(500_000)
+        theirs.setCurrency("EUR")
+        theirs.setTheme(ThemeMode.LIGHT)
+        theirs.setBillReminders(false)
+
+        val a = mine.current()
+        val b = theirs.current()
+        assertEquals("USD", a.currency)
+        assertEquals(500_000L, a.monthlyBudgetMinor)
+        assertEquals("EUR", b.currency)
+        assertEquals(0L, b.monthlyBudgetMinor)
+        assertEquals(ThemeMode.LIGHT, a.themeMode)
+        assertFalse(a.billReminders)
+    }
 }

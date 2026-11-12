@@ -22,6 +22,7 @@ Everything stays on your phone: there are no accounts, no cloud and no tracking.
 | **Bills & rent** | Weekly, monthly or yearly bills with reminders before they're due. Mark one paid to record the payment and move it to the next due date. A bill due on the 31st stays on the 31st, even after a short month. |
 | **Budgets** | An overall monthly budget plus a budget for each category, with warning colors at 80% and when you go over. |
 | **Insights** | Spending against last month, savings rate, daily average, a category breakdown, daily bars against your daily budget, a spending-pace line, a 6-month trend, your grocery cost trend and your biggest expenses. |
+| **Workspaces** | Keep separate books for yourself, a roommate, friends or a trip. Each workspace has its own transactions, lists, bills, categories, budget and currency; switch from the pill at the top of Home. Widgets follow the open workspace, and bill reminders cover all of them. |
 | **Settings** | 10 currencies (Indian lakh grouping for ₹), light, dark or system theme, optional Material You wallpaper colors, CSV export and import, and category editing. |
 
 ### Home screen widgets

@@ -20,6 +20,7 @@ import dev.suks.midas.MainActivity
 import dev.suks.midas.MidasApplication
 import dev.suks.midas.R
 import dev.suks.midas.data.Bill
+import dev.suks.midas.data.Workspace
 import dev.suks.midas.domain.Dates
 import dev.suks.midas.domain.Money
 import java.time.Duration
@@ -28,15 +29,23 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.concurrent.TimeUnit
 
-/** Daily check (around 9am) that posts a notification for bills that are due soon or overdue. */
+/**
+ * Daily check (around 9am) that posts a notification for bills that are due soon or overdue,
+ * in every workspace, so a roommate's rent is never forgotten just because their workspace isn't open.
+ */
 class BillReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val container = (applicationContext as MidasApplication).container
-        val settings = container.settings.current()
-        if (!settings.billReminders) return Result.success()
-        val due = dueForReminder(container.bills.getActive(), container.today())
-        if (due.isNotEmpty()) notify(applicationContext, due, container.today(), settings.currency)
+        val manager = (applicationContext as MidasApplication).workspaces
+        // Reminders on/off is an app-wide setting, so any workspace's settings will do.
+        if (!manager.current.settings.current().billReminders) return Result.success()
+        val all = manager.all()
+        all.forEach { (workspace, container) ->
+            val due = dueForReminder(container.bills.getActive(), container.today())
+            if (due.isNotEmpty()) {
+                notify(applicationContext, workspace, showWorkspace = all.size > 1, due, container.today(), container.settings.current().currency)
+            }
+        }
         return Result.success()
     }
 
@@ -60,6 +69,14 @@ class BillReminderWorker(context: Context, params: WorkerParameters) : Coroutine
             }
         }
 
+        /** Notification title; names the workspace when there's more than one, so you know whose bill it is. */
+        fun title(bill: Bill, workspace: Workspace, showWorkspace: Boolean): String =
+            if (showWorkspace) "${bill.name} · ${workspace.name}" else bill.name
+
+        /** Bill ids repeat across workspaces, so other workspaces mix their id into the notification id. */
+        fun notificationId(workspaceId: String, billId: Long): Int =
+            if (workspaceId == Workspace.DEFAULT_ID) billId.toInt() else 31 * workspaceId.hashCode() + billId.hashCode()
+
         fun createChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             val nm = context.getSystemService(NotificationManager::class.java)
@@ -80,26 +97,29 @@ class BillReminderWorker(context: Context, params: WorkerParameters) : Coroutine
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
         }
 
-        private fun notify(context: Context, bills: List<Bill>, today: LocalDate, currency: String) {
+        private fun notify(context: Context, workspace: Workspace, showWorkspace: Boolean, bills: List<Bill>, today: LocalDate, currency: String) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) return
             val open = PendingIntent.getActivity(
-                context, 0,
-                Intent(context, MainActivity::class.java).setAction(MainActivity.ACTION_OPEN_BILLS).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                context, workspace.id.hashCode(),
+                Intent(context, MainActivity::class.java)
+                    .setAction(MainActivity.ACTION_OPEN_BILLS)
+                    .putExtra(MainActivity.EXTRA_WORKSPACE_ID, workspace.id)
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
             val nm = NotificationManagerCompat.from(context)
             bills.forEach { b ->
                 val n = NotificationCompat.Builder(context, CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_stat_midas)
-                    .setContentTitle(b.name)
+                    .setContentTitle(title(b, workspace, showWorkspace))
                     .setContentText(message(b, today, currency))
                     .setContentIntent(open)
                     .setAutoCancel(true)
                     .setGroup("bills")
                     .build()
-                nm.notify(b.id.toInt(), n)
+                nm.notify(notificationId(workspace.id, b.id), n)
             }
         }
     }

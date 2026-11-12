@@ -29,11 +29,11 @@ abstract class MidasDatabase : RoomDatabase() {
     abstract fun bills(): BillDao
 
     companion object {
-        fun build(context: Context, inMemory: Boolean = false): MidasDatabase {
+        fun build(context: Context, inMemory: Boolean = false, name: String = Workspace.databaseName(Workspace.DEFAULT_ID)): MidasDatabase {
             val builder = if (inMemory) {
                 Room.inMemoryDatabaseBuilder(context, MidasDatabase::class.java).allowMainThreadQueries()
             } else {
-                Room.databaseBuilder(context, MidasDatabase::class.java, "midas.db")
+                Room.databaseBuilder(context, MidasDatabase::class.java, name)
             }
             return builder.addCallback(SeedCallback).build()
         }

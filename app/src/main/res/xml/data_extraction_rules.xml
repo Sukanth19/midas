@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
+    <!-- Every workspace has its own midas*.db and datastore/settings*.preferences_pb. -->
     <cloud-backup>
-        <include domain="database" path="midas.db" />
-        <include domain="file" path="datastore/settings.preferences_pb" />
+        <include domain="database" path="." />
+        <include domain="file" path="datastore/" />
+        <include domain="sharedpref" path="workspaces.xml" />
     </cloud-backup>
     <device-transfer>
-        <include domain="database" path="midas.db" />
-        <include domain="file" path="datastore/settings.preferences_pb" />
+        <include domain="database" path="." />
+        <include domain="file" path="datastore/" />
+        <include domain="sharedpref" path="workspaces.xml" />
     </device-transfer>
 </data-extraction-rules>

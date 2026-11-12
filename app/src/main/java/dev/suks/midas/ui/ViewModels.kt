@@ -16,7 +16,8 @@ import androidx.lifecycle.viewModelScope
 @Composable
 inline fun <reified VM : ViewModel> midasViewModel(key: String? = null, crossinline create: (AppContainer) -> VM): VM {
     val container = (LocalContext.current.applicationContext as MidasApplication).container
-    return viewModel(key = key) { create(container) }
+    // Keyed by workspace so a screen never holds on to a ViewModel built for another workspace.
+    return viewModel(key = "${container.workspaceId}:${key ?: VM::class.java.name}") { create(container) }
 }
 
 fun <T> ViewModel.stateOf(flow: Flow<T>, initial: T): StateFlow<T> =

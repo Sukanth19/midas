@@ -18,6 +18,10 @@ import dev.suks.midas.data.Category
 import dev.suks.midas.data.GroceryItem
 import dev.suks.midas.data.Settings
 import dev.suks.midas.data.Transaction
+import dev.suks.midas.data.Workspace
+import dev.suks.midas.ui.workspaces.WorkspaceSheetContent
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.performTextClearance
 import dev.suks.midas.domain.GroceryMath
 import dev.suks.midas.domain.TxType
 import dev.suks.midas.ui.bills.BillsContent
@@ -141,6 +145,66 @@ class ScreensTest {
         compose.onNodeWithText("Pay Phone").assertExists()
         compose.onNodeWithText("Mark paid").performClick()
         assertEquals(1L, paid)
+    }
+
+    private val personal = Workspace(Workspace.DEFAULT_ID, "Personal", 0xFFC9A227)
+    private val roommate = Workspace("r1", "Roommate", 0xFF1E88E5)
+
+    @Test fun `home shows the open workspace and opens the switcher`() {
+        var opened = false
+        compose.setContent { MidasTheme { HomeContent(HomeState(loaded = true, today = today), workspace = roommate, onWorkspaces = { opened = true }) } }
+        compose.onNodeWithText("Roommate").assertIsDisplayed()
+        compose.onNodeWithTag("workspace_chip").performClick()
+        assertTrue(opened)
+    }
+
+    @Test fun `home hides the workspace chip when none is given`() {
+        compose.setContent { MidasTheme { HomeContent(HomeState(loaded = true, today = today)) } }
+        compose.onNodeWithTag("workspace_chip").assertDoesNotExist()
+    }
+
+    @Test fun `switcher lists workspaces and switches on tap`() {
+        var selected: String? = null
+        compose.setContent { MidasTheme { WorkspaceSheetContent(listOf(personal, roommate), activeId = personal.id, onSelect = { selected = it }) } }
+        compose.onNodeWithText("Personal").assertIsDisplayed()
+        compose.onNodeWithText("Open now").assertIsDisplayed()
+        compose.onNodeWithTag("workspace_Roommate").performClick()
+        assertEquals("r1", selected)
+    }
+
+    @Test fun `switcher creates a workspace with a cleaned name`() {
+        var created: String? = null
+        compose.setContent { MidasTheme { WorkspaceSheetContent(listOf(personal), activeId = personal.id, onCreate = { created = it }) } }
+        compose.onNodeWithTag("new_workspace").performClick()
+        compose.onNodeWithTag("workspace_confirm").assertIsNotEnabled()
+        compose.onNodeWithTag("workspace_name").performTextInput("  Goa trip ")
+        compose.onNodeWithTag("workspace_confirm").performClick()
+        assertEquals("Goa trip", created)
+    }
+
+    @Test fun `switcher renames a workspace`() {
+        var renamed: Pair<String, String>? = null
+        compose.setContent { MidasTheme { WorkspaceSheetContent(listOf(personal, roommate), activeId = personal.id, onRename = { id, n -> renamed = id to n }) } }
+        compose.onNodeWithTag("edit_Roommate").performClick()
+        compose.onNodeWithTag("workspace_name").performTextClearance()
+        compose.onNodeWithTag("workspace_name").performTextInput("Aditya")
+        compose.onNodeWithTag("workspace_confirm").performClick()
+        assertEquals("r1" to "Aditya", renamed)
+    }
+
+    @Test fun `deleting asks for confirmation and the default workspace can't be deleted`() {
+        val deleted = mutableListOf<String>()
+        compose.setContent { MidasTheme { WorkspaceSheetContent(listOf(personal, roommate), activeId = roommate.id, onDelete = { deleted += it }) } }
+        compose.onNodeWithTag("edit_Personal").performClick()
+        compose.onNodeWithTag("workspace_delete").assertDoesNotExist()
+        compose.onNodeWithText("Cancel").performClick()
+
+        compose.onNodeWithTag("edit_Roommate").performClick()
+        compose.onNodeWithTag("workspace_delete").performClick()
+        compose.onNodeWithText("Delete Roommate?").assertIsDisplayed()
+        assertTrue(deleted.isEmpty())
+        compose.onNodeWithTag("confirm_delete").performClick()
+        assertEquals(listOf("r1"), deleted)
     }
 
     private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.onAllNodesWithTextFirst(text: String) =
