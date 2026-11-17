@@ -89,6 +89,8 @@ import dev.suks.midas.ui.stateOf
 import dev.suks.midas.ui.theme.HeroAmount
 import dev.suks.midas.ui.theme.money
 import dev.suks.midas.ui.transactions.TransactionRow
+import dev.suks.midas.ui.split.SplitHomeCard
+import dev.suks.midas.ui.split.SplitViewModel
 import dev.suks.midas.ui.workspaces.WorkspaceChip
 import dev.suks.midas.ui.workspaces.WorkspaceSheet
 import dev.suks.midas.ui.workspaces.rememberWorkspaces
@@ -114,13 +116,22 @@ data class HomeState(
     val grocery: GroceryTotals = GroceryTotals(0, 0, 0, 0),
     /** Payments read from SMS or notifications, waiting to be added. */
     val toReview: List<CapturedPayment> = emptyList(),
+    /** People this workspace's costs are split with, and where you stand. */
+    val peopleCount: Int = 0,
+    val splitBalanceMinor: Long = 0,
 )
 
 class HomeViewModel(private val c: AppContainer) : ViewModel() {
     val state = stateOf(
         combine(c.settings.settings, c.transactions.all, c.categories.categories, c.bills.bills, c.grocery.items) { s: Settings, txs, cats, bills, groceries ->
             build(c.today(), s, txs, cats, bills, groceries.map { it.toLine() })
-        }.combine(c.captures.pending) { state, pending -> state.copy(toReview = pending) },
+        }.combine(c.captures.pending) { state, pending -> state.copy(toReview = pending) }
+            .combine(combine(c.split.people, c.split.sharedExpenses, c.split.settlements, ::Triple)) { state, (people, shared, settlements) ->
+                state.copy(
+                    peopleCount = people.size,
+                    splitBalanceMinor = SplitViewModel.build(people, shared, settlements, Settings(), state.today).yourBalance,
+                )
+            },
         HomeState(),
     )
 
@@ -169,6 +180,7 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
 fun HomeScreen(
     onAdd: () -> Unit, onOpenTransaction: (Long) -> Unit, onSeeAll: () -> Unit, onBudgets: () -> Unit,
     onBills: () -> Unit, onGroceries: () -> Unit, onSettings: () -> Unit, onReviewCapture: (Long) -> Unit = {},
+    onSplit: () -> Unit = {},
 ) {
     val vm = midasViewModel { HomeViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -181,6 +193,7 @@ fun HomeScreen(
         workspace = workspaces.firstOrNull { it.id == activeId },
         onWorkspaces = { switching = true },
         onReviewCapture = onReviewCapture, onDismissCapture = vm::dismissCapture, onDismissAllCaptures = vm::dismissAllCaptures,
+        onSplit = onSplit,
     )
     if (switching) WorkspaceSheet(workspacesVm, onDismiss = { switching = false })
 }
@@ -199,6 +212,7 @@ fun HomeContent(
     onBills: () -> Unit = {}, onGroceries: () -> Unit = {}, onSettings: () -> Unit = {},
     workspace: Workspace? = null, onWorkspaces: () -> Unit = {},
     onReviewCapture: (Long) -> Unit = {}, onDismissCapture: (Long) -> Unit = {}, onDismissAllCaptures: () -> Unit = {},
+    onSplit: () -> Unit = {},
 ) {
     val scroll = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     Scaffold(
@@ -230,6 +244,7 @@ fun HomeContent(
             if (state.toReview.isNotEmpty()) item { ReviewCard(state, onReviewCapture, onDismissCapture, onDismissAllCaptures) }
             item { HeroCard(state, onBudgets) }
             item { QuickActions(onAdd, onGroceries, onBills, onSeeAll) }
+            if (state.peopleCount > 0) item { SplitHomeCard(state.splitBalanceMinor, state.currency, onSplit) }
             if (state.shares.isNotEmpty()) item { WhereItWentCard(state) }
             if (state.last7Days.any { it.second > 0 }) item { WeekCard(state) }
             if (state.upcomingBills.isNotEmpty()) item { BillsCard(state, onBills) }

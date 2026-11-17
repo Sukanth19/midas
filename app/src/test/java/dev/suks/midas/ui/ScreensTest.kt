@@ -16,6 +16,11 @@ import androidx.compose.ui.test.hasScrollAction
 import dev.suks.midas.data.Bill
 import dev.suks.midas.data.CapturedPayment
 import dev.suks.midas.data.Category
+import dev.suks.midas.data.Person
+import dev.suks.midas.domain.Payment
+import dev.suks.midas.ui.split.SplitContent
+import dev.suks.midas.ui.split.SplitState
+import dev.suks.midas.ui.split.SplitViewModel
 import dev.suks.midas.domain.PaymentMethod
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import dev.suks.midas.data.GroceryItem
@@ -133,6 +138,46 @@ class ScreensTest {
         assertEquals(7L, reviewed)
         compose.onAllNodesWithContentDescription("Dismiss")[1].performClick()
         assertEquals(8L, dismissed)
+    }
+
+    @Test fun `split screen starts empty and adds a person`() {
+        var added: String? = null
+        compose.setContent { MidasTheme { SplitContent(SplitState(loaded = true), onAddPerson = { added = it }) } }
+        compose.onNodeWithText("Share costs with people").assertIsDisplayed()
+        compose.onNodeWithTag("add_person").performClick()
+        compose.onNodeWithTag("person_name").performTextInput("Rahul")
+        compose.onNodeWithTag("person_save").performClick()
+        assertEquals("Rahul", added)
+    }
+
+    @Test fun `split screen shows balances, settles up and shares`() {
+        val state = SplitViewModel.build(
+            listOf(Person(1, "Rahul")), listOf(Transaction(1, 50_000, TxType.EXPENSE, null, "Dinner", "", today, shared = true)),
+            emptyList(), Settings(), today,
+        )
+        var settled: Payment? = null
+        var shared = false
+        compose.setContent { MidasTheme { SplitContent(state, onSettle = { settled = it }, onShareWhatsApp = { shared = true }) } }
+        compose.onNodeWithText("You're owed").assertIsDisplayed()
+        compose.onNodeWithTag("split_balance").assertIsDisplayed()
+        compose.onNodeWithText("Rahul pays Me").assertIsDisplayed()
+        compose.onNodeWithTag("settle_1_null").performClick()
+        compose.onNodeWithTag("confirm_settle").performClick()
+        assertEquals(Payment(1, null, 25_000), settled)
+        compose.onNodeWithTag("share_whatsapp").performClick()
+        assertTrue(shared)
+    }
+
+    @Test fun `expenses in a shared workspace pick who paid and split`() {
+        val state = EditTxState(
+            loading = false, today = today, date = today, categories = listOf(food), amountText = "300",
+            people = listOf(Person(1, "Rahul"), Person(2, "Priya")), shared = true,
+        )
+        var paidBy: Long? = -1
+        compose.setContent { MidasTheme { EditTransactionContent(state, onPaidBy = { paidBy = it }) } }
+        compose.onNodeWithTag("paid_by_Rahul").performScrollTo().performClick()
+        assertEquals(1L, paidBy)
+        compose.onNodeWithText("₹100 each for 3 people").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun `grocery list shows estimate and toggles items`() {

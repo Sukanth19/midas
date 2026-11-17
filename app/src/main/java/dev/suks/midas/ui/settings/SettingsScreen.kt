@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Fingerprint
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Palette
@@ -118,7 +119,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> Unit = {}) {
     val vm = midasViewModel { SettingsViewModel(it) }
     val s by vm.settings.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
@@ -164,6 +165,7 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit) {
             Group("General")
             Row(Icons.Rounded.Payments, "Currency", "${s.currency} · ${Money.symbol(s.currency)}") { pickCurrency = true }
             Row(Icons.Rounded.Category, "Categories", "Add, rename or recolour categories", onClick = onCategories)
+            Row(Icons.Rounded.Groups, "Split with people", "Share this workspace's costs with roommates or friends", onClick = onSplit)
 
             Group("Appearance")
             Row(Icons.Rounded.DarkMode, "Theme", s.themeMode.name.lowercase().replaceFirstChar(Char::uppercase).let { if (it == "System") "Follow system" else it }) { pickTheme = true }

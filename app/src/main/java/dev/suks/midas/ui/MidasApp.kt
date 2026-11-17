@@ -48,6 +48,7 @@ import dev.suks.midas.ui.insights.InsightsScreen
 import dev.suks.midas.ui.lists.ListsScreen
 import dev.suks.midas.ui.settings.CategoriesScreen
 import dev.suks.midas.ui.settings.SettingsScreen
+import dev.suks.midas.ui.split.SplitScreen
 import dev.suks.midas.ui.transactions.EditTransactionScreen
 import dev.suks.midas.ui.transactions.TransactionsScreen
 import kotlinx.serialization.Serializable
@@ -68,6 +69,7 @@ import kotlin.reflect.KClass
 @Serializable object BudgetsRoute
 @Serializable object SettingsRoute
 @Serializable object CategoriesRoute
+@Serializable object SplitRoute
 
 private data class Tab(val label: String, val route: Any, val routeClass: KClass<*>, val icon: ImageVector, val selectedIcon: ImageVector)
 
@@ -152,6 +154,7 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit, shared
                     onGroceries = { nav.switchTab(ListsRoute(tab = 1)) },
                     onSettings = { nav.navigate(SettingsRoute) },
                     onReviewCapture = { nav.navigate(EditTransactionRoute(captureId = it)) },
+                    onSplit = { nav.navigate(SplitRoute) },
                 )
             }
             composable<ActivityRoute> {
@@ -168,7 +171,10 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit, shared
                 EditTransactionScreen(id = r.id, startAsIncome = r.income, onDone = { nav.popBackStack() }, captureId = r.captureId, sharedText = r.sharedText)
             }
             composable<BudgetsRoute> { BudgetsScreen(onBack = { nav.popBackStack() }) }
-            composable<SettingsRoute> { SettingsScreen(onBack = { nav.popBackStack() }, onCategories = { nav.navigate(CategoriesRoute) }) }
+            composable<SettingsRoute> {
+                SettingsScreen(onBack = { nav.popBackStack() }, onCategories = { nav.navigate(CategoriesRoute) }, onSplit = { nav.navigate(SplitRoute) })
+            }
+            composable<SplitRoute> { SplitScreen(onBack = { nav.popBackStack() }) }
             composable<CategoriesRoute> { CategoriesScreen(onBack = { nav.popBackStack() }) }
         }
     }

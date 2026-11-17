@@ -3,7 +3,11 @@ package dev.suks.midas.ui
 import dev.suks.midas.data.Bill
 import dev.suks.midas.data.Category
 import dev.suks.midas.data.GroceryWeek
+import dev.suks.midas.data.Person
 import dev.suks.midas.data.Settings
+import dev.suks.midas.data.Settlement
+import dev.suks.midas.domain.Payment
+import dev.suks.midas.ui.split.SplitViewModel
 import dev.suks.midas.data.Transaction
 import dev.suks.midas.domain.Frequency
 import dev.suks.midas.domain.GroceryLine
@@ -128,5 +132,23 @@ class StateBuilderTest {
         assertNull(s.change)
         assertNull(s.dailyBudgetMinor)
         assertTrue(s.shares.isEmpty())
+    }
+
+    @Test fun `split state works out balances and who pays whom`() {
+        val rahul = Person(1, "Rahul")
+        val priya = Person(2, "Priya")
+        val shared = listOf(
+            Transaction(10, 90_000, TxType.EXPENSE, null, "Groceries", "", today, shared = true),
+            Transaction(11, 30_000, TxType.EXPENSE, null, "Gas", "", today, shared = true, paidById = 1),
+            // Paid by someone no longer in the list: counted as yours.
+            Transaction(12, 3_000, TxType.EXPENSE, null, "Old", "", today, shared = true, paidById = 99),
+        )
+        val s = SplitViewModel.build(listOf(rahul, priya), shared, listOf(Settlement(1, 2, null, 20_000, today)), Settings(myName = "Ani"), today)
+        // ₹1,230 shared three ways is ₹410 each. You paid ₹930 and got ₹200 back from Priya.
+        assertEquals(32_000L, s.yourBalance)
+        assertEquals(-11_000L, s.balances[1L])
+        assertEquals(-21_000L, s.balances[2L])
+        assertEquals(listOf(Payment(2, null, 21_000), Payment(1, null, 11_000)), s.payments)
+        assertTrue(s.summary("Flat").contains("Priya pays Ani ₹210"))
     }
 }
