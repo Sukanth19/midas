@@ -15,6 +15,7 @@ import dev.suks.midas.domain.GroceryMath
 import dev.suks.midas.domain.GroceryTotals
 import dev.suks.midas.domain.Stats
 import dev.suks.midas.domain.Frequency
+import dev.suks.midas.domain.Money
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.YearMonth
@@ -51,7 +52,7 @@ data class WidgetData(
                 budget = BudgetProgress(s.monthlyBudgetMinor, summary.expenseMinor),
                 safeToSpend = Budgets.safeToSpend(
                     s.monthlyBudgetMinor, summary.expenseMinor - spentToday, spentToday,
-                    c.bills.getActive().sumOf { it.dueRestOfMonth(today) }, month, today,
+                    c.bills.getActive().sumOf { it.dueRestOfMonth(today) }, month, today, Money.minorPerMajor(s.currency),
                 ),
                 incomeMinor = summary.incomeMinor,
                 last7Days = Stats.dailyExpense(points, DateRange(today.minusDays(6), today)).map { it.second },

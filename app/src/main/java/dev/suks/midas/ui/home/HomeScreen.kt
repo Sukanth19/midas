@@ -162,7 +162,7 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
                     spentBeforeTodayMinor = summary.expenseMinor - spentToday,
                     spentTodayMinor = spentToday,
                     billsDueMinor = bills.sumOf { it.dueRestOfMonth(today) },
-                    month = month, today = today,
+                    month = month, today = today, unitMinor = Money.minorPerMajor(s.currency),
                 ),
                 projectedMinor = Budgets.projectedSpend(summary.expenseMinor, month, today),
                 shares = Stats.byCategory(points, range).take(4).map { it to it.categoryId?.let(byId::get) },

@@ -23,6 +23,9 @@ object Money {
         "AUD" to "A$", "CAD" to "C$", "SGD" to "S$", "AED" to "AED ", "CHF" to "CHF ",
     )
 
+    /** Minor units in one whole unit: 100 for rupees and dollars, 1 for yen. */
+    fun minorPerMajor(currencyCode: String): Long = pow10(fractionDigits(currencyCode))
+
     fun symbol(currencyCode: String): String = symbols[currencyCode] ?: "$currencyCode "
 
     fun toDecimal(minor: Long, currencyCode: String): BigDecimal =

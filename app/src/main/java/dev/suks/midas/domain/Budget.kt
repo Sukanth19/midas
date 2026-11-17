@@ -51,17 +51,18 @@ object Budgets {
 
     /**
      * "Safe to spend today": the budget left at the start of today, minus bills still due this month,
-     * shared evenly over the days left, minus what has already gone out today.
+     * shared evenly over the days left, minus what has already gone out today. The daily share is
+     * rounded down to a whole [unitMinor] (₹1 = 100 paise) so the figure reads cleanly.
      * Null without a budget or outside [month].
      */
     fun safeToSpend(
         limitMinor: Long, spentBeforeTodayMinor: Long, spentTodayMinor: Long, billsDueMinor: Long,
-        month: YearMonth, today: LocalDate,
+        month: YearMonth, today: LocalDate, unitMinor: Long = 1,
     ): SafeToSpend? {
         if (limitMinor <= 0 || YearMonth.from(today) != month) return null
         val daysLeft = month.lengthOfMonth() - today.dayOfMonth + 1
         val pool = (limitMinor - spentBeforeTodayMinor - billsDueMinor).coerceAtLeast(0)
-        val perDay = pool / daysLeft
+        val perDay = pool / daysLeft / unitMinor * unitMinor
         return SafeToSpend(perDay - spentTodayMinor, perDay, billsDueMinor.coerceAtLeast(0))
     }
 

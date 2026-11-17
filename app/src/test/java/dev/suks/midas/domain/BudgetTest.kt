@@ -48,6 +48,7 @@ class BudgetTest {
         assertEquals(2_000L, safe.reservedForBillsMinor)
         assertEquals(-1_500L, Budgets.safeToSpend(30_000, 8_000, 2_500, 2_000, nov, day)!!.todayMinor)
         assertEquals(0L, Budgets.safeToSpend(10_000, 9_000, 0, 5_000, nov, day)!!.perDayMinor)
+        assertEquals(1_000L, Budgets.safeToSpend(30_000, 8_000, 0, 0, nov, day, unitMinor = 1_000)!!.perDayMinor) // 1,100 a day → 1,000
         assertNull(Budgets.safeToSpend(0, 0, 0, 0, nov, day))
         assertNull(Budgets.safeToSpend(30_000, 0, 0, 0, nov, LocalDate.of(2026, 12, 1)))
     }

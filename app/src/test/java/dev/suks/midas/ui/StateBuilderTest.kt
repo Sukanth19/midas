@@ -61,7 +61,8 @@ class StateBuilderTest {
         // Netflix (20 Nov) and the overdue phone bill are held back; 20 days left incl. today.
         val safe = s.safeToSpend!!
         assertEquals(124_800L, safe.reservedForBillsMinor)
-        assertEquals((3_000_000L - 1_830_000 - 124_800) / 20, safe.perDayMinor)
+        // ₹522.60 a day, rounded down to whole rupees.
+        assertEquals(52_200L, safe.perDayMinor)
         assertEquals(safe.perDayMinor - 45_000, safe.todayMinor)
         assertEquals(listOf(rent.id, food.id), s.shares.map { it.first.categoryId })
         assertEquals(listOf("Phone", "Netflix", "Rent"), s.upcomingBills.map { it.name })
