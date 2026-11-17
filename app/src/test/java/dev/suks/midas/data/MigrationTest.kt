@@ -57,6 +57,7 @@ class MigrationTest {
         try {
             assertEquals("Lunch", room.transactions().getAll().single().title)
             assertEquals("Rent", room.bills().getActive().single().name)
+            assertEquals("", room.bills().getActive().single().upiId)
             val grocery = GroceryRepository(room) {}
             grocery.finishWeek(LocalDate.ofEpochDay(day), null, null)
             assertEquals(6000L, room.grocery().latestPrice("milk")!!.unitPriceMinor)

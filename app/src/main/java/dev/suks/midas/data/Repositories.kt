@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import dev.suks.midas.domain.CsvTransaction
 import dev.suks.midas.domain.Dates
 import dev.suks.midas.domain.GroceryMath
+import dev.suks.midas.domain.PaymentMethod
 import dev.suks.midas.domain.Recurrence
 import dev.suks.midas.domain.TxSource
 import dev.suks.midas.domain.TxType
@@ -193,13 +194,13 @@ class BillRepository(private val db: MidasDatabase, private val onChanged: Chang
     suspend fun delete(id: Long) { dao.delete(id); onChanged() }
 
     /** Records a payment for the bill's current due date and moves it to the next one. */
-    suspend fun markPaid(id: Long, paidOn: LocalDate, amountMinor: Long? = null): Long? {
+    suspend fun markPaid(id: Long, paidOn: LocalDate, amountMinor: Long? = null, method: PaymentMethod? = null): Long? {
         val txId = db.withTransaction {
             val bill = dao.get(id) ?: return@withTransaction null
             val txId = db.transactions().insert(
                 Transaction(
                     amountMinor = amountMinor ?: bill.amountMinor, type = TxType.EXPENSE, categoryId = bill.categoryId,
-                    title = bill.name, date = paidOn, paymentMethod = bill.paymentMethod,
+                    title = bill.name, date = paidOn, paymentMethod = method ?: bill.paymentMethod,
                     source = TxSource.BILL, billId = bill.id,
                 ),
             )

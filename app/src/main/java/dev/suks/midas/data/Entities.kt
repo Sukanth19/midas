@@ -1,5 +1,6 @@
 package dev.suks.midas.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -123,7 +124,12 @@ data class Bill(
     val paymentMethod: PaymentMethod = PaymentMethod.BANK,
     val active: Boolean = true,
     val lastPaidOn: LocalDate? = null,
+    /** Payee's UPI ID; when set the bill can be paid straight from a UPI app. Blank = none. */
+    @ColumnInfo(defaultValue = "") val upiId: String = "",
 ) {
+    /** UPI only works in rupees and needs the payee's ID. */
+    fun canPayByUpi(currency: String): Boolean = currency == "INR" && upiId.isNotBlank()
+
     /** Unpaid amount still due from [today] to the end of the month, overdue included. */
     fun dueRestOfMonth(today: LocalDate): Long =
         if (!active) 0 else Recurrence.dueRestOfMonth(nextDue, frequency, interval, anchorDay, amountMinor, today)

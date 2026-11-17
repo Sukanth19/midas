@@ -165,6 +165,23 @@ class ScreensTest {
         assertEquals(1L, paid)
     }
 
+    @Test fun `bills with a upi id can be paid from a upi app`() {
+        val rent = Bill(2, "Rent", 1_800_000, nextDue = today.plusDays(3), upiId = "landlord@okhdfcbank")
+        var upi: Pair<Long, Long>? = null
+        compose.setContent { MidasTheme { BillsContent(BillsViewModel.build(listOf(rent), listOf(food), "INR", today), onPayUpi = { b, a -> upi = b.id to a }) } }
+        compose.onNodeWithText("Pay").performClick()
+        compose.onNodeWithTag("pay_upi").performClick()
+        assertEquals(2L to 1_800_000L, upi)
+    }
+
+    @Test fun `bills in other currencies don't offer upi`() {
+        val rent = Bill(2, "Rent", 1_800_000, nextDue = today.plusDays(3), upiId = "landlord@okhdfcbank")
+        compose.setContent { MidasTheme { BillsContent(BillsViewModel.build(listOf(rent), listOf(food), "USD", today)) } }
+        compose.onNodeWithText("Pay").performClick()
+        compose.onNodeWithText("Mark paid").assertExists()
+        compose.onNodeWithTag("pay_upi").assertDoesNotExist()
+    }
+
     private val personal = Workspace(Workspace.DEFAULT_ID, "Personal", 0xFFC9A227)
     private val roommate = Workspace("r1", "Roommate", 0xFF1E88E5)
 

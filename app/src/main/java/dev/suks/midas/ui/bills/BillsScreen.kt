@@ -52,6 +52,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -66,6 +75,7 @@ import dev.suks.midas.domain.Money
 import dev.suks.midas.domain.PaymentMethod
 import dev.suks.midas.domain.Recurrence
 import dev.suks.midas.domain.TxType
+import dev.suks.midas.domain.Upi
 import dev.suks.midas.ui.components.AmountField
 import dev.suks.midas.ui.components.CategoryBadge
 import dev.suks.midas.ui.components.CategoryIcons
@@ -105,6 +115,7 @@ class BillsViewModel(private val c: AppContainer) : ViewModel() {
     fun save(b: Bill) = viewModelScope.launch { c.bills.save(b) }
     fun delete(id: Long) = viewModelScope.launch { c.bills.delete(id) }
     fun pay(id: Long, amount: Long) = viewModelScope.launch { c.bills.markPaid(id, c.today(), amount) }
+    fun paidByUpi(id: Long, amount: Long) = viewModelScope.launch { c.bills.markPaid(id, c.today(), amount, PaymentMethod.UPI) }
     fun skip(id: Long) = viewModelScope.launch { c.bills.skip(id) }
 
     companion object {
@@ -130,7 +141,41 @@ class BillsViewModel(private val c: AppContainer) : ViewModel() {
 fun BillsScreen() {
     val vm = midasViewModel { BillsViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
-    BillsContent(state, vm::save, vm::delete, vm::pay, vm::skip)
+    val context = LocalContext.current
+    // The bill being paid in a UPI app, kept across the trip out so the reply can be matched to it.
+    var upiPayment by rememberSaveable { mutableStateOf<Pair<Long, Long>?>(null) }
+    var askIfPaid by rememberSaveable { mutableStateOf<Pair<Long, Long>?>(null) }
+    val upiLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val payment = upiPayment ?: return@rememberLauncherForActivityResult
+        upiPayment = null
+        val reply = result.data?.getStringExtra("response") ?: result.data?.getStringExtra("Status")?.let { "Status=$it" }
+        when (Upi.parseResponse(reply)) {
+            Upi.Result.SUCCESS -> vm.paidByUpi(payment.first, payment.second)
+            Upi.Result.FAILED -> Toast.makeText(context, "The UPI payment didn't go through", Toast.LENGTH_LONG).show()
+            // Many apps don't report back, so ask rather than guess.
+            Upi.Result.UNKNOWN -> askIfPaid = payment
+        }
+    }
+    BillsContent(
+        state, vm::save, vm::delete, vm::pay, vm::skip,
+        onPayUpi = { bill, amount ->
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(Upi.payUri(bill.upiId, bill.name, amount, bill.name)))
+            try {
+                upiPayment = bill.id to amount
+                upiLauncher.launch(Intent.createChooser(intent, "Pay ${bill.name} with"))
+            } catch (_: ActivityNotFoundException) {
+                upiPayment = null
+                Toast.makeText(context, "No UPI app found on this phone", Toast.LENGTH_LONG).show()
+            }
+        },
+    )
+    askIfPaid?.let { (id, amount) ->
+        val name = (state.overdue + state.soon + state.later).firstOrNull { it.id == id }?.name ?: "the bill"
+        ConfirmDialog(
+            "Did the payment go through?", "Your UPI app didn't say. If it went through, Midas will mark $name as paid.", "Yes, mark paid",
+            onConfirm = { vm.paidByUpi(id, amount); askIfPaid = null },
+        ) { askIfPaid = null }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -141,6 +186,7 @@ fun BillsContent(
     onDelete: (Long) -> Unit = {},
     onPay: (Long, Long) -> Unit = { _, _ -> },
     onSkip: (Long) -> Unit = {},
+    onPayUpi: (Bill, Long) -> Unit = { _, _ -> },
 ) {
     var editing by remember { mutableStateOf<Bill?>(null) }
     var paying by remember { mutableStateOf<Bill?>(null) }
@@ -201,7 +247,15 @@ fun BillsContent(
                 }
             },
             confirmButton = {
-                TextButton(enabled = (Money.parse(amount, state.currency) ?: 0) > 0, onClick = { onPay(b.id, Money.parse(amount, state.currency)!!); paying = null }) { Text("Mark paid") }
+                val valid = (Money.parse(amount, state.currency) ?: 0) > 0
+                Row {
+                    if (b.canPayByUpi(state.currency)) {
+                        TextButton(enabled = valid, onClick = { onPayUpi(b, Money.parse(amount, state.currency)!!); paying = null }, modifier = Modifier.testTag("pay_upi")) {
+                            Text("Pay with UPI app")
+                        }
+                    }
+                    TextButton(enabled = valid, onClick = { onPay(b.id, Money.parse(amount, state.currency)!!); paying = null }) { Text("Mark paid") }
+                }
             },
             dismissButton = { TextButton(onClick = { paying = null }) { Text("Cancel") } },
         )
@@ -255,6 +309,8 @@ private fun BillSheet(b: Bill, state: BillsState, onDismiss: () -> Unit, onSave:
     var icon by remember { mutableStateOf(b.icon) }
     var method by remember { mutableStateOf(b.paymentMethod) }
     var active by remember { mutableStateOf(b.active) }
+    var upiId by remember { mutableStateOf(b.upiId) }
+    val upiValid = upiId.isBlank() || Upi.isValidId(upiId)
     var tried by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val amountMinor = Money.parse(amount, state.currency)
@@ -302,6 +358,15 @@ private fun BillSheet(b: Bill, state: BillsState, onDismiss: () -> Unit, onSave:
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PaymentMethod.entries.forEach { p -> FilterChip(method == p, { method = p }, { Text(p.label) }) }
             }
+            if (state.currency == "INR") {
+                OutlinedTextField(
+                    upiId, { upiId = it.trim() }, label = { Text("Payee UPI ID (optional)") }, placeholder = { Text("e.g. landlord@okhdfcbank") },
+                    supportingText = { Text(if (tried && !upiValid) "That doesn't look like a UPI ID" else "Lets you pay this bill from GPay, PhonePe or any UPI app") },
+                    singleLine = true, isError = tried && !upiValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier.fillMaxWidth().testTag("bill_upi"),
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Active", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                 Switch(active, { active = it })
@@ -314,12 +379,12 @@ private fun BillSheet(b: Bill, state: BillsState, onDismiss: () -> Unit, onSave:
                 Button(
                     onClick = {
                         tried = true
-                        if (name.isNotBlank() && (amountMinor ?: 0) > 0) {
+                        if (name.isNotBlank() && (amountMinor ?: 0) > 0 && upiValid) {
                             onSave(
                                 b.copy(
                                     name = name.trim(), amountMinor = amountMinor!!, categoryId = categoryId, frequency = frequency, interval = interval,
                                     nextDue = nextDue, anchorDay = if (nextDue != b.nextDue || b.id == 0L) nextDue.dayOfMonth else b.anchorDay,
-                                    remindDaysBefore = remind, icon = icon, paymentMethod = method, active = active,
+                                    remindDaysBefore = remind, icon = icon, paymentMethod = method, active = active, upiId = upiId.trim(),
                                 ),
                             )
                         }

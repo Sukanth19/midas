@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "50afa56992fd38def8f59e6c5451ecde",
+    "identityHash": "83a86ea8ebb00a46ccbebac1ca4a374c",
     "entities": [
       {
         "tableName": "categories",
@@ -387,7 +387,7 @@
       },
       {
         "tableName": "bills",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `amountMinor` INTEGER NOT NULL, `categoryId` INTEGER, `icon` TEXT NOT NULL, `frequency` TEXT NOT NULL, `interval` INTEGER NOT NULL, `nextDue` INTEGER NOT NULL, `anchorDay` INTEGER NOT NULL, `remindDaysBefore` INTEGER NOT NULL, `paymentMethod` TEXT NOT NULL, `active` INTEGER NOT NULL, `lastPaidOn` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `amountMinor` INTEGER NOT NULL, `categoryId` INTEGER, `icon` TEXT NOT NULL, `frequency` TEXT NOT NULL, `interval` INTEGER NOT NULL, `nextDue` INTEGER NOT NULL, `anchorDay` INTEGER NOT NULL, `remindDaysBefore` INTEGER NOT NULL, `paymentMethod` TEXT NOT NULL, `active` INTEGER NOT NULL, `lastPaidOn` INTEGER, `upiId` TEXT NOT NULL DEFAULT '')",
         "fields": [
           {
             "fieldPath": "id",
@@ -464,6 +464,13 @@
             "fieldPath": "lastPaidOn",
             "columnName": "lastPaidOn",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "upiId",
+            "columnName": "upiId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
           }
         ],
         "primaryKey": {
@@ -540,7 +547,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '50afa56992fd38def8f59e6c5451ecde')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '83a86ea8ebb00a46ccbebac1ca4a374c')"
     ]
   }
 }
