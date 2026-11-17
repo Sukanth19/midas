@@ -58,6 +58,8 @@ class ScreensTest {
         compose.onNodeWithTag("hero_spent").assertIsDisplayed()
         compose.onNodeWithText("₹1,250.50").assertIsDisplayed()
         compose.onNodeWithText("₹8,749.50 left of ₹10,000").assertIsDisplayed()
+        // ₹500/day for the 20 days left, and ₹1,250.50 already gone today.
+        compose.onNodeWithText("₹750.50 over").assertIsDisplayed()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Dinner"))
         compose.onNodeWithText("Dinner").assertIsDisplayed()
         compose.onNodeWithTag("add_fab").performClick()

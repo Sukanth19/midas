@@ -128,10 +128,21 @@ fun SpendingContent(context: Context, d: WidgetData) {
                         backgroundColor = GlanceTheme.colors.surfaceVariant,
                     )
                     Spacer(GlanceModifier.height(6.dp))
+                    val safe = d.safeToSpend
+                    val left = if (b.remainingMinor >= 0) "${Money.formatCompact(b.remainingMinor, d.currency)} left" else "${Money.formatCompact(-b.remainingMinor, d.currency)} over"
+                    val today = when {
+                        safe == null -> null
+                        safe.todayMinor >= 0 -> "${Money.formatCompact(safe.todayMinor, d.currency)} safe today"
+                        else -> "${Money.formatCompact(-safe.todayMinor, d.currency)} over today"
+                    }
                     Text(
-                        if (b.remainingMinor >= 0) "${Money.formatCompact(b.remainingMinor, d.currency)} left" else "${Money.formatCompact(-b.remainingMinor, d.currency)} over",
+                        when {
+                            today == null -> left
+                            wide -> "$left · $today"
+                            else -> today
+                        },
                         style = TextStyle(
-                            color = if (b.remainingMinor >= 0) GlanceTheme.colors.onSurfaceVariant else GlanceTheme.colors.error,
+                            color = if (b.remainingMinor >= 0 && (safe?.todayMinor ?: 0) >= 0) GlanceTheme.colors.onSurfaceVariant else GlanceTheme.colors.error,
                             fontSize = 12.sp,
                         ),
                         maxLines = 1,

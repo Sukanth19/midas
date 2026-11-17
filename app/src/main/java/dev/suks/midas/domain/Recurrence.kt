@@ -35,6 +35,16 @@ object Recurrence {
         return out
     }
 
+    /**
+     * What a bill still needs paying from [today] to the end of the month: its overdue occurrences
+     * plus those left this month. Paid occurrences are already behind [nextDue].
+     */
+    fun dueRestOfMonth(nextDue: LocalDate, frequency: Frequency, interval: Int, anchorDay: Int, amountMinor: Long, today: LocalDate): Long {
+        val monthEnd = today.withDayOfMonth(today.lengthOfMonth())
+        val from = minOf(nextDue, today.withDayOfMonth(1))
+        return occurrences(nextDue, frequency, interval, anchorDay, DateRange(from, monthEnd)).size * amountMinor
+    }
+
     /** What a recurring amount costs per month on average, for the "fixed costs" figure. */
     fun monthlyEquivalent(amountMinor: Long, frequency: Frequency, interval: Int): Long = when (frequency) {
         Frequency.WEEKLY -> Math.round(amountMinor * 52.0 / 12.0 / interval)

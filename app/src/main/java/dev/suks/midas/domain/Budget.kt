@@ -27,6 +27,16 @@ data class BudgetProgress(
     }
 }
 
+/** Today's spending room once the bills still due this month have been set aside. */
+data class SafeToSpend(
+    /** What's left for today; negative once today's spending has gone past the daily share. */
+    val todayMinor: Long,
+    /** The even daily share for the rest of the month, today included. */
+    val perDayMinor: Long,
+    /** Unpaid bills still due this month, held back from the budget. */
+    val reservedForBillsMinor: Long,
+)
+
 object Budgets {
 
     /**
@@ -37,6 +47,22 @@ object Budgets {
         if (progress.limitMinor <= 0 || YearMonth.from(today) != month) return null
         val daysLeft = month.lengthOfMonth() - today.dayOfMonth + 1
         return (progress.remainingMinor.coerceAtLeast(0) / daysLeft)
+    }
+
+    /**
+     * "Safe to spend today": the budget left at the start of today, minus bills still due this month,
+     * shared evenly over the days left, minus what has already gone out today.
+     * Null without a budget or outside [month].
+     */
+    fun safeToSpend(
+        limitMinor: Long, spentBeforeTodayMinor: Long, spentTodayMinor: Long, billsDueMinor: Long,
+        month: YearMonth, today: LocalDate,
+    ): SafeToSpend? {
+        if (limitMinor <= 0 || YearMonth.from(today) != month) return null
+        val daysLeft = month.lengthOfMonth() - today.dayOfMonth + 1
+        val pool = (limitMinor - spentBeforeTodayMinor - billsDueMinor).coerceAtLeast(0)
+        val perDay = pool / daysLeft
+        return SafeToSpend(perDay - spentTodayMinor, perDay, billsDueMinor.coerceAtLeast(0))
     }
 
     /**

@@ -8,6 +8,7 @@ import dev.suks.midas.domain.Frequency
 import dev.suks.midas.domain.GroceryLine
 import dev.suks.midas.domain.PaymentMethod
 import dev.suks.midas.domain.Priority
+import dev.suks.midas.domain.Recurrence
 import dev.suks.midas.domain.TxPoint
 import dev.suks.midas.domain.TxSource
 import dev.suks.midas.domain.TxType
@@ -108,4 +109,8 @@ data class Bill(
     val paymentMethod: PaymentMethod = PaymentMethod.BANK,
     val active: Boolean = true,
     val lastPaidOn: LocalDate? = null,
-)
+) {
+    /** Unpaid amount still due from [today] to the end of the month, overdue included. */
+    fun dueRestOfMonth(today: LocalDate): Long =
+        if (!active) 0 else Recurrence.dueRestOfMonth(nextDue, frequency, interval, anchorDay, amountMinor, today)
+}

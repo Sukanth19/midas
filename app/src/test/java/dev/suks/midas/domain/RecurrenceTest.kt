@@ -50,4 +50,12 @@ class RecurrenceTest {
         assertEquals(4_333L, Recurrence.monthlyEquivalent(1_000, Frequency.WEEKLY, 1))
         assertEquals(500L, Recurrence.monthlyEquivalent(1_500, Frequency.MONTHLY, 3))
     }
+
+    @Test fun `due rest of month counts overdue and remaining occurrences`() {
+        val today = LocalDate.of(2026, 11, 11)
+        assertEquals(500L, Recurrence.dueRestOfMonth(LocalDate.of(2026, 11, 20), Frequency.MONTHLY, 1, 20, 500, today))
+        assertEquals(0L, Recurrence.dueRestOfMonth(LocalDate.of(2026, 12, 1), Frequency.MONTHLY, 1, 1, 500, today))
+        // Weekly, overdue since 4 Nov: 4, 11, 18, 25.
+        assertEquals(400L, Recurrence.dueRestOfMonth(LocalDate.of(2026, 11, 4), Frequency.WEEKLY, 1, 4, 100, today))
+    }
 }

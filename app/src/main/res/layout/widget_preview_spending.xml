@@ -15,7 +15,7 @@
             <ImageView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="67" android:src="@drawable/widget_preview_bar_hi" android:scaleType="fitXY" />
             <ImageView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="33" android:src="@drawable/widget_preview_track" android:scaleType="fitXY" />
         </LinearLayout>
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="₹13.2k left"
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="₹13.2k left · ₹310 safe today"
             android:textColor="@color/widget_on_surface_variant" android:textSize="12sp" />
     </LinearLayout>
 

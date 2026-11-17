@@ -65,7 +65,9 @@ import dev.suks.midas.domain.Dates
 import dev.suks.midas.domain.GroceryMath
 import dev.suks.midas.domain.GroceryTotals
 import dev.suks.midas.domain.Money
+import dev.suks.midas.domain.SafeToSpend
 import dev.suks.midas.domain.Stats
+import dev.suks.midas.domain.TxType
 import dev.suks.midas.ui.components.BarChart
 import dev.suks.midas.ui.components.BudgetBar
 import dev.suks.midas.ui.components.CategoryBadge
@@ -96,7 +98,7 @@ data class HomeState(
     val spentMinor: Long = 0,
     val incomeMinor: Long = 0,
     val budget: BudgetProgress = BudgetProgress(0, 0),
-    val dailyAllowanceMinor: Long? = null,
+    val safeToSpend: SafeToSpend? = null,
     val projectedMinor: Long = 0,
     val shares: List<Pair<CategoryShare, Category?>> = emptyList(),
     val last7Days: List<Pair<LocalDate, Long>> = emptyList(),
@@ -125,6 +127,7 @@ class HomeViewModel(c: AppContainer) : ViewModel() {
             val summary = Stats.summary(points, range, today)
             val budget = BudgetProgress(s.monthlyBudgetMinor, summary.expenseMinor)
             val byId = cats.associateBy { it.id }
+            val spentToday = txs.filter { it.type == TxType.EXPENSE && it.date == today }.sumOf { it.amountMinor }
             return HomeState(
                 loaded = true,
                 currency = s.currency,
@@ -132,7 +135,13 @@ class HomeViewModel(c: AppContainer) : ViewModel() {
                 spentMinor = summary.expenseMinor,
                 incomeMinor = summary.incomeMinor,
                 budget = budget,
-                dailyAllowanceMinor = Budgets.dailyAllowance(budget, month, today),
+                safeToSpend = Budgets.safeToSpend(
+                    limitMinor = s.monthlyBudgetMinor,
+                    spentBeforeTodayMinor = summary.expenseMinor - spentToday,
+                    spentTodayMinor = spentToday,
+                    billsDueMinor = bills.sumOf { it.dueRestOfMonth(today) },
+                    month = month, today = today,
+                ),
                 projectedMinor = Budgets.projectedSpend(summary.expenseMinor, month, today),
                 shares = Stats.byCategory(points, range).take(4).map { it to it.categoryId?.let(byId::get) },
                 last7Days = Stats.dailyExpense(points, dev.suks.midas.domain.DateRange(today.minusDays(6), today)),
@@ -255,9 +264,10 @@ private fun HeroCard(state: HomeState, onBudgets: () -> Unit) {
                     color = if (left >= 0) on else MaterialTheme.colorScheme.error,
                     modifier = Modifier.weight(1f),
                 )
-                state.dailyAllowanceMinor?.let {
-                    Text("${Money.formatCompact(it, state.currency)}/day", style = MaterialTheme.typography.labelLarge, color = on)
-                }
+            }
+            state.safeToSpend?.let { safe ->
+                Spacer(Modifier.height(12.dp))
+                SafeToSpendRow(safe, state.currency, on)
             }
         } else {
             FilledTonalButton(onClick = onBudgets) { Text("Set a monthly budget") }
@@ -266,6 +276,32 @@ private fun HeroCard(state: HomeState, onBudgets: () -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             HeroChip(Icons.Rounded.ArrowDownward, "Income", Money.formatCompact(state.incomeMinor, state.currency), MaterialTheme.money.positive, Modifier.weight(1f))
             HeroChip(Icons.Rounded.ArrowUpward, "Projected", Money.formatCompact(state.projectedMinor, state.currency), on, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun SafeToSpendRow(safe: SafeToSpend, currency: String, on: Color) {
+    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Safe to spend today", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    if (safe.todayMinor >= 0) Money.format(safe.todayMinor, currency) else "${Money.format(-safe.todayMinor, currency)} over",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (safe.todayMinor >= 0) on else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("safe_today"),
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("${Money.formatCompact(safe.perDayMinor, currency)}/day", style = MaterialTheme.typography.labelLarge, color = on)
+                if (safe.reservedForBillsMinor > 0) {
+                    Text(
+                        "${Money.formatCompact(safe.reservedForBillsMinor, currency)} kept for bills",
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
@@ -335,7 +371,7 @@ private fun WeekCard(state: HomeState) {
             labels = state.last7Days.map { it.first.dayOfWeek.name.take(1) },
             detailLabels = state.last7Days.map { Dates.dayHeader(it.first, state.today) },
             height = 110.dp,
-            reference = state.dailyAllowanceMinor?.toFloat(),
+            reference = state.safeToSpend?.perDayMinor?.toFloat(),
             valueLabel = { Money.format(it.toLong(), state.currency) },
         )
     }

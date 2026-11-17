@@ -38,4 +38,17 @@ class BudgetTest {
         assertEquals(12_345L, Budgets.projectedSpend(12_345, YearMonth.of(2026, 10), LocalDate.of(2026, 11, 10)))
         assertEquals(0L, Budgets.projectedSpend(12_345, YearMonth.of(2026, 12), LocalDate.of(2026, 11, 10)))
     }
+
+    @Test fun `safe to spend sets bills aside and subtracts today`() {
+        val nov = YearMonth.of(2026, 11)
+        val day = LocalDate.of(2026, 11, 11) // 20 days left incl. today
+        val safe = Budgets.safeToSpend(30_000, 8_000, 500, 2_000, nov, day)!!
+        assertEquals(1_000L, safe.perDayMinor)
+        assertEquals(500L, safe.todayMinor)
+        assertEquals(2_000L, safe.reservedForBillsMinor)
+        assertEquals(-1_500L, Budgets.safeToSpend(30_000, 8_000, 2_500, 2_000, nov, day)!!.todayMinor)
+        assertEquals(0L, Budgets.safeToSpend(10_000, 9_000, 0, 5_000, nov, day)!!.perDayMinor)
+        assertNull(Budgets.safeToSpend(0, 0, 0, 0, nov, day))
+        assertNull(Budgets.safeToSpend(30_000, 0, 0, 0, nov, LocalDate.of(2026, 12, 1)))
+    }
 }

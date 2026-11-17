@@ -6,6 +6,9 @@ import dev.suks.midas.MidasApplication
 import dev.suks.midas.data.Bill
 import dev.suks.midas.data.GroceryItem
 import dev.suks.midas.domain.BudgetProgress
+import dev.suks.midas.domain.Budgets
+import dev.suks.midas.domain.SafeToSpend
+import dev.suks.midas.domain.TxType
 import dev.suks.midas.domain.DateRange
 import dev.suks.midas.domain.Dates
 import dev.suks.midas.domain.GroceryMath
@@ -22,6 +25,7 @@ data class WidgetData(
     val today: LocalDate,
     val monthLabel: String,
     val budget: BudgetProgress,
+    val safeToSpend: SafeToSpend?,
     val incomeMinor: Long,
     val last7Days: List<Long>,
     val grocery: List<GroceryItem>,
@@ -39,11 +43,16 @@ data class WidgetData(
             val points = c.transactions.getAll().map { it.toPoint() }
             val summary = Stats.summary(points, Dates.month(month), today)
             val grocery = c.grocery.getItems()
+            val spentToday = points.filter { it.type == TxType.EXPENSE && it.date == today }.sumOf { it.amountMinor }
             return WidgetData(
                 currency = s.currency,
                 today = today,
                 monthLabel = month.month.name.lowercase().replaceFirstChar(Char::uppercase),
                 budget = BudgetProgress(s.monthlyBudgetMinor, summary.expenseMinor),
+                safeToSpend = Budgets.safeToSpend(
+                    s.monthlyBudgetMinor, summary.expenseMinor - spentToday, spentToday,
+                    c.bills.getActive().sumOf { it.dueRestOfMonth(today) }, month, today,
+                ),
                 incomeMinor = summary.incomeMinor,
                 last7Days = Stats.dailyExpense(points, DateRange(today.minusDays(6), today)).map { it.second },
                 grocery = grocery.sortedWith(compareBy({ it.checked }, { it.section }, { it.name })),
@@ -69,6 +78,7 @@ data class WidgetData(
                 today = today,
                 monthLabel = today.month.name.lowercase().replaceFirstChar(Char::uppercase),
                 budget = BudgetProgress(4_000_000, 2_684_000),
+                safeToSpend = SafeToSpend(31_000, 48_000, 320_000),
                 incomeMinor = 9_500_000,
                 last7Days = listOf(84000, 23000, 156000, 41000, 0, 212000, 67000),
                 grocery = grocery.sortedBy { it.checked },

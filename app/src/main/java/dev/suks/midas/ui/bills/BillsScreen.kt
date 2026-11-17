@@ -80,7 +80,6 @@ import dev.suks.midas.ui.theme.money
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.YearMonth
 
 data class BillsState(
     val currency: String = "INR",
@@ -111,7 +110,6 @@ class BillsViewModel(private val c: AppContainer) : ViewModel() {
     companion object {
         fun build(bills: List<Bill>, cats: List<Category>, currency: String, today: LocalDate): BillsState {
             val active = bills.filter { it.active }
-            val month = Dates.month(YearMonth.from(today))
             return BillsState(
                 currency = currency, today = today,
                 overdue = active.filter { it.nextDue.isBefore(today) },
@@ -120,10 +118,7 @@ class BillsViewModel(private val c: AppContainer) : ViewModel() {
                 paused = bills.filter { !it.active },
                 categories = cats.filter { it.type == TxType.EXPENSE },
                 // Unpaid occurrences still to come this month, plus anything overdue.
-                dueThisMonthMinor = active.sumOf { b ->
-                    val from = if (b.nextDue.isBefore(month.start)) b.nextDue else month.start
-                    Recurrence.occurrences(b.nextDue, b.frequency, b.interval, b.anchorDay, dev.suks.midas.domain.DateRange(from, month.endInclusive)).size * b.amountMinor
-                },
+                dueThisMonthMinor = active.sumOf { it.dueRestOfMonth(today) },
                 monthlyFixedMinor = active.sumOf { Recurrence.monthlyEquivalent(it.amountMinor, it.frequency, it.interval) },
                 loaded = true,
             )
