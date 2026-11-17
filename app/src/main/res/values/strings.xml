@@ -15,4 +15,5 @@
     <string name="shortcut_grocery_long">Open weekly groceries</string>
     <string name="shortcut_bills_short">Bills</string>
     <string name="shortcut_bills_long">Open bills and rent</string>
+    <string name="capture_listener_label">Midas payment capture</string>
 </resources>
