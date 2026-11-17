@@ -45,6 +45,21 @@ object Recurrence {
         return occurrences(nextDue, frequency, interval, anchorDay, DateRange(from, monthEnd)).size * amountMinor
     }
 
+    /**
+     * The iCalendar repeat rule for a bill, for adding it to the phone's calendar.
+     * Monthly bills on the 29th–31st land on the last day of shorter months, matching [next].
+     */
+    fun rrule(frequency: Frequency, interval: Int, anchorDay: Int): String {
+        val every = if (interval > 1) ";INTERVAL=$interval" else ""
+        return when (frequency) {
+            Frequency.WEEKLY -> "FREQ=WEEKLY$every"
+            Frequency.YEARLY -> "FREQ=YEARLY$every"
+            Frequency.MONTHLY ->
+                if (anchorDay <= 28) "FREQ=MONTHLY$every;BYMONTHDAY=$anchorDay"
+                else "FREQ=MONTHLY$every;BYMONTHDAY=${(28..anchorDay).joinToString(",")};BYSETPOS=-1"
+        }
+    }
+
     /** What a recurring amount costs per month on average, for the "fixed costs" figure. */
     fun monthlyEquivalent(amountMinor: Long, frequency: Frequency, interval: Int): Long = when (frequency) {
         Frequency.WEEKLY -> Math.round(amountMinor * 52.0 / 12.0 / interval)

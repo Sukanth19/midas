@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -60,6 +61,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.provider.CalendarContract
+import java.time.ZoneOffset
 import android.widget.Toast
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -158,6 +161,13 @@ fun BillsScreen() {
     }
     BillsContent(
         state, vm::save, vm::delete, vm::pay, vm::skip,
+        onAddToCalendar = { bill ->
+            try {
+                context.startActivity(calendarIntent(bill, state.currency))
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(context, "No calendar app found on this phone", Toast.LENGTH_LONG).show()
+            }
+        },
         onPayUpi = { bill, amount ->
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(Upi.payUri(bill.upiId, bill.name, amount, bill.name)))
             try {
@@ -178,6 +188,19 @@ fun BillsScreen() {
     }
 }
 
+/** Opens the calendar app with a repeating all-day event for the bill, ready to save. No permission needed. */
+private fun calendarIntent(bill: Bill, currency: String): Intent {
+    val start = bill.nextDue.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    return Intent(Intent.ACTION_INSERT, CalendarContract.Events.CONTENT_URI)
+        .putExtra(CalendarContract.Events.TITLE, "${bill.name} due")
+        .putExtra(CalendarContract.Events.DESCRIPTION, "${Money.format(bill.amountMinor, currency)} · from Midas")
+        .putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, true)
+        .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, start)
+        .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, start + 24 * 60 * 60 * 1000L)
+        .putExtra(CalendarContract.Events.RRULE, Recurrence.rrule(bill.frequency, bill.interval, bill.anchorDay))
+        .putExtra(CalendarContract.Events.AVAILABILITY, CalendarContract.Events.AVAILABILITY_FREE)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BillsContent(
@@ -187,6 +210,7 @@ fun BillsContent(
     onPay: (Long, Long) -> Unit = { _, _ -> },
     onSkip: (Long) -> Unit = {},
     onPayUpi: (Bill, Long) -> Unit = { _, _ -> },
+    onAddToCalendar: (Bill) -> Unit = {},
 ) {
     var editing by remember { mutableStateOf<Bill?>(null) }
     var paying by remember { mutableStateOf<Bill?>(null) }
@@ -233,7 +257,10 @@ fun BillsContent(
     }
 
     editing?.let { b ->
-        BillSheet(b, state, onDismiss = { editing = null }, onSave = { onSave(it); editing = null }, onDelete = { onDelete(it); editing = null }, onSkip = { onSkip(it); editing = null })
+        BillSheet(
+            b, state, onDismiss = { editing = null }, onSave = { onSave(it); editing = null }, onDelete = { onDelete(it); editing = null },
+            onSkip = { onSkip(it); editing = null }, onAddToCalendar = { onAddToCalendar(b) },
+        )
     }
     paying?.let { b ->
         var amount by remember(b.id) { mutableStateOf(Money.toInput(b.amountMinor, state.currency)) }
@@ -298,7 +325,10 @@ private fun BillRow(b: Bill, category: Category?, state: BillsState, onPay: () -
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun BillSheet(b: Bill, state: BillsState, onDismiss: () -> Unit, onSave: (Bill) -> Unit, onDelete: (Long) -> Unit, onSkip: (Long) -> Unit) {
+private fun BillSheet(
+    b: Bill, state: BillsState, onDismiss: () -> Unit, onSave: (Bill) -> Unit, onDelete: (Long) -> Unit, onSkip: (Long) -> Unit,
+    onAddToCalendar: () -> Unit,
+) {
     var name by remember { mutableStateOf(b.name) }
     var amount by remember { mutableStateOf(Money.toInput(b.amountMinor, state.currency)) }
     var categoryId by remember { mutableStateOf(b.categoryId) }
@@ -370,6 +400,13 @@ private fun BillSheet(b: Bill, state: BillsState, onDismiss: () -> Unit, onSave:
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Active", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                 Switch(active, { active = it })
+            }
+            if (b.id != 0L && b.active) {
+                OutlinedButton(onClick = onAddToCalendar, modifier = Modifier.fillMaxWidth().testTag("bill_calendar")) {
+                    Icon(Icons.Rounded.CalendarMonth, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add to calendar")
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (b.id != 0L) {

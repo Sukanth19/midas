@@ -58,4 +58,11 @@ class RecurrenceTest {
         // Weekly, overdue since 4 Nov: 4, 11, 18, 25.
         assertEquals(400L, Recurrence.dueRestOfMonth(LocalDate.of(2026, 11, 4), Frequency.WEEKLY, 1, 4, 100, today))
     }
+
+    @Test fun `calendar repeat rules`() {
+        assertEquals("FREQ=MONTHLY;BYMONTHDAY=5", Recurrence.rrule(Frequency.MONTHLY, 1, 5))
+        assertEquals("FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=28,29,30,31;BYSETPOS=-1", Recurrence.rrule(Frequency.MONTHLY, 3, 31))
+        assertEquals("FREQ=WEEKLY;INTERVAL=2", Recurrence.rrule(Frequency.WEEKLY, 2, 1))
+        assertEquals("FREQ=YEARLY", Recurrence.rrule(Frequency.YEARLY, 1, 14))
+    }
 }
