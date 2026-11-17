@@ -5,6 +5,11 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.withTransaction
 import dev.suks.midas.WorkspaceManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -86,7 +91,19 @@ interface BackupDao {
 }
 
 /** Writes every workspace to one JSON backup and restores from one, replacing what's there. */
-class BackupManager(private val workspaces: WorkspaceManager, private val appVersion: String) {
+class BackupManager(
+    private val workspaces: WorkspaceManager,
+    private val appVersion: String,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+) {
+    /** Restores outside any screen's lifetime, since switching workspace rebuilds the screens. */
+    fun restoreInBackground(backup: BackupFile, onDone: (Boolean) -> Unit) {
+        scope.launch {
+            val ok = runCatching { restore(backup) }.isSuccess
+            withContext(Dispatchers.Main) { onDone(ok) }
+        }
+    }
+
 
     suspend fun export(now: Long = System.currentTimeMillis()): String {
         val all = workspaces.all().map { (ws, c) ->

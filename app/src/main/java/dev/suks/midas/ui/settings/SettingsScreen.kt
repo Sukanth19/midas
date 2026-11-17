@@ -21,6 +21,15 @@ import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.Restore
+import dev.suks.midas.MidasApplication
+import dev.suks.midas.data.BackupFile
+import dev.suks.midas.data.BackupManager
+import dev.suks.midas.domain.Dates
+import androidx.compose.material3.AlertDialog
+import java.time.Instant
+import java.time.ZoneId
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Payments
@@ -34,7 +43,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.suks.midas.capture.PaymentNotificationListener
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.testTag
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -81,10 +89,40 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
-class SettingsViewModel(private val c: AppContainer) : ViewModel() {
+class SettingsViewModel(private val c: AppContainer, private val backups: BackupManager) : ViewModel() {
     val settings = stateOf(c.settings.settings, Settings())
     private val _message = MutableStateFlow<String?>(null)
     val message = _message.asStateFlow()
+    /** A backup that has been read and is waiting for the user to confirm the restore. */
+    private val _pendingRestore = MutableStateFlow<BackupFile?>(null)
+    val pendingRestore = _pendingRestore.asStateFlow()
+
+    fun backUp(uri: Uri, resolver: ContentResolver) = viewModelScope.launch {
+        val ok = runCatching {
+            val text = backups.export()
+            withContext(Dispatchers.IO) { resolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray()) } ?: error("no stream") }
+        }.isSuccess
+        _message.value = if (ok) "Backup saved" else "Backup failed"
+    }
+
+    fun openBackup(uri: Uri, resolver: ContentResolver) = viewModelScope.launch {
+        val text = withContext(Dispatchers.IO) { runCatching { resolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } }.getOrNull() }
+        if (text == null) { _message.value = "Couldn't read that file"; return@launch }
+        try {
+            _pendingRestore.value = backups.read(text)
+        } catch (e: IllegalArgumentException) {
+            _message.value = e.message
+        }
+    }
+
+    fun confirmRestore() {
+        val backup = _pendingRestore.value ?: return
+        _pendingRestore.value = null
+        // Runs in the app scope: restoring may switch workspace, which closes this screen.
+        backups.restoreInBackground(backup) { ok -> _message.value = if (ok) "Backup restored" else "Restore failed" }
+    }
+
+    fun cancelRestore() { _pendingRestore.value = null }
 
     fun setCurrency(code: String) = viewModelScope.launch { c.settings.setCurrency(code) }
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { c.settings.setTheme(mode) }
@@ -120,7 +158,9 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> Unit = {}) {
-    val vm = midasViewModel { SettingsViewModel(it) }
+    val app = LocalContext.current.applicationContext as MidasApplication
+    val vm = midasViewModel { SettingsViewModel(it, app.backups) }
+    val pendingRestore by vm.pendingRestore.collectAsStateWithLifecycle()
     val s by vm.settings.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -132,6 +172,12 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> 
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         uri?.let { vm.export(it, context.contentResolver) }
+    }
+    val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let { vm.backUp(it, context.contentResolver) }
+    }
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { vm.openBackup(it, context.contentResolver) }
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { vm.import(it, context.contentResolver) }
@@ -218,6 +264,14 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> 
                 Switch(s.appLock, { on -> toggleLock(on) })
             }) { toggleLock(!s.appLock) }
 
+            Group("Backup")
+            Row(Icons.Rounded.Backup, "Back up now", "Every workspace, transaction, list and bill in one file") {
+                backupLauncher.launch(BackupManager.fileName(LocalDate.now()))
+            }
+            Row(Icons.Rounded.Restore, "Restore from backup", "Replaces everything in Midas with a backup file") {
+                restoreLauncher.launch(arrayOf("application/json", "application/octet-stream", "text/*"))
+            }
+
             Group("Data")
             Row(Icons.Rounded.FileDownload, "Export to CSV", "Every transaction, readable in any spreadsheet") { exportLauncher.launch("midas-${LocalDate.now()}.csv") }
             Row(Icons.Rounded.FileUpload, "Import from CSV", "Columns: date, type, amount, category, title, note") { importLauncher.launch(arrayOf("text/*", "application/csv", "text/comma-separated-values")) }
@@ -228,6 +282,22 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> 
         }
     }
 
+    pendingRestore?.let { b ->
+        val txCount = b.workspaces.sumOf { it.transactions.size }
+        val made = Instant.ofEpochMilli(b.createdAt).atZone(ZoneId.systemDefault()).toLocalDate()
+        AlertDialog(
+            onDismissRequest = vm::cancelRestore,
+            title = { Text("Restore this backup?") },
+            text = {
+                Text(
+                    "Made ${Dates.shortDate(made, LocalDate.now())} · ${b.workspaces.size} workspace${if (b.workspaces.size == 1) "" else "s"}, " +
+                        "$txCount transaction${if (txCount == 1) "" else "s"}.\n\nEverything in Midas now will be replaced by it.",
+                )
+            },
+            confirmButton = { TextButton(onClick = vm::confirmRestore, modifier = Modifier.testTag("confirm_restore")) { Text("Restore") } },
+            dismissButton = { TextButton(onClick = vm::cancelRestore) { Text("Cancel") } },
+        )
+    }
     if (pickCurrency) {
         ChoiceDialog("Currency", Money.supportedCurrencies, s.currency, { "$it  ${Money.symbol(it)}" }, onDismiss = { pickCurrency = false }) { vm.setCurrency(it); pickCurrency = false }
     }

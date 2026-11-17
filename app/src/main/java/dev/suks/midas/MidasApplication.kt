@@ -2,6 +2,7 @@ package dev.suks.midas
 
 import android.app.Application
 import dev.suks.midas.capture.PaymentCapture
+import dev.suks.midas.data.BackupManager
 import dev.suks.midas.data.MidasDatabase
 import dev.suks.midas.data.Workspace
 import dev.suks.midas.data.WorkspaceRegistry
@@ -39,6 +40,8 @@ class MidasApplication : Application() {
             },
         )
     }
+
+    val backups: BackupManager by lazy { BackupManager(workspaces, BuildConfigInfo.versionName(this), appScope) }
 
     /** The open workspace's container. Widgets, quick actions and screens all follow it. */
     val container: AppContainer get() = workspaces.current
