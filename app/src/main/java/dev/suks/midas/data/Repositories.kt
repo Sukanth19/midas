@@ -3,7 +3,9 @@ package dev.suks.midas.data
 import androidx.room.withTransaction
 import dev.suks.midas.domain.CsvTransaction
 import dev.suks.midas.domain.Dates
+import dev.suks.midas.domain.CaptureStatus
 import dev.suks.midas.domain.GroceryMath
+import dev.suks.midas.domain.ParsedPayment
 import dev.suks.midas.domain.PaymentMethod
 import dev.suks.midas.domain.Recurrence
 import dev.suks.midas.domain.TxSource
@@ -49,6 +51,8 @@ class TransactionRepository(private val db: MidasDatabase, private val onChanged
     }
 
     suspend fun delete(id: Long) { dao.delete(id); onChanged() }
+
+    suspend fun lastCategoryFor(title: String, type: TxType): Long? = dao.lastCategoryFor(title.trim(), type)
 
     /** Imports CSV rows, matching categories by name and creating any that are missing. */
     suspend fun import(items: List<CsvTransaction>): Int {
@@ -221,5 +225,47 @@ class BillRepository(private val db: MidasDatabase, private val onChanged: Chang
         val bill = dao.get(id) ?: return
         dao.upsert(bill.copy(nextDue = Recurrence.next(bill.nextDue, bill.frequency, bill.interval, bill.anchorDay)))
         onChanged()
+    }
+}
+
+class CaptureRepository(private val db: MidasDatabase, private val onChanged: ChangeListener) {
+    private val dao = db.captures()
+    val pending: Flow<List<CapturedPayment>> = dao.observePending()
+
+    suspend fun get(id: Long) = dao.get(id)
+
+    /**
+     * Stores a payment read from an SMS or notification. The same payment often arrives twice (the
+     * bank's SMS and the UPI app's alert), so one with the same amount and direction within
+     * [DUPLICATE_WINDOW_MS] is treated as the same: it only fills in a missing payee. Returns the new
+     * id, or null for a duplicate.
+     */
+    suspend fun capture(p: ParsedPayment, source: String, text: String, at: Long): Long? {
+        val id = db.withTransaction {
+            dao.pruneHandled(at - KEEP_HANDLED_MS)
+            val twin = dao.findSimilar(p.amountMinor, p.type, at - DUPLICATE_WINDOW_MS, at + DUPLICATE_WINDOW_MS)
+            if (twin != null) {
+                if (twin.merchant == null && p.merchant != null) dao.update(twin.copy(merchant = p.merchant))
+                null
+            } else {
+                dao.insert(
+                    CapturedPayment(
+                        amountMinor = p.amountMinor, type = p.type, merchant = p.merchant, method = p.method,
+                        account = p.account, source = source, text = text.take(500), receivedAt = at,
+                    ),
+                )
+            }
+        }
+        onChanged()
+        return id
+    }
+
+    suspend fun markAdded(id: Long, transactionId: Long) { dao.setStatus(id, CaptureStatus.ADDED, transactionId); onChanged() }
+    suspend fun dismiss(id: Long) { dao.setStatus(id, CaptureStatus.DISMISSED); onChanged() }
+    suspend fun dismissAll() { dao.dismissAll(); onChanged() }
+
+    companion object {
+        const val DUPLICATE_WINDOW_MS = 15 * 60 * 1000L
+        const val KEEP_HANDLED_MS = 60L * 24 * 60 * 60 * 1000
     }
 }

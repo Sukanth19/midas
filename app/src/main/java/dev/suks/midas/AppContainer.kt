@@ -3,6 +3,7 @@ package dev.suks.midas
 import android.content.Context
 import dev.suks.midas.data.BillRepository
 import dev.suks.midas.data.BuyListRepository
+import dev.suks.midas.data.CaptureRepository
 import dev.suks.midas.data.CategoryRepository
 import dev.suks.midas.data.ChangeListener
 import dev.suks.midas.data.GroceryRepository
@@ -30,6 +31,7 @@ class AppContainer(
     val buyList = BuyListRepository(database, onChanged)
     val grocery = GroceryRepository(database, onChanged)
     val bills = BillRepository(database, onChanged)
+    val captures = CaptureRepository(database, onChanged)
 
     fun today(): LocalDate = LocalDate.now(clock)
 

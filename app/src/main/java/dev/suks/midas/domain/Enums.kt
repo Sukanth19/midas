@@ -3,7 +3,10 @@ package dev.suks.midas.domain
 enum class TxType { EXPENSE, INCOME }
 
 /** Where a transaction came from; lets the UI show a small badge and lets us undo side effects. */
-enum class TxSource { MANUAL, BILL, BUY_LIST, GROCERY }
+enum class TxSource { MANUAL, BILL, BUY_LIST, GROCERY, CAPTURED }
+
+/** A payment picked up from an SMS or app notification waits for review before it becomes a transaction. */
+enum class CaptureStatus { PENDING, ADDED, DISMISSED }
 
 enum class PaymentMethod(val label: String) {
     CASH("Cash"), CARD("Card"), UPI("UPI"), BANK("Bank"), OTHER("Other")

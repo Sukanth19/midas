@@ -57,7 +57,13 @@ import dev.suks.midas.data.Bill
 import dev.suks.midas.data.Category
 import dev.suks.midas.data.Settings
 import dev.suks.midas.data.Transaction
+import dev.suks.midas.data.CapturedPayment
 import dev.suks.midas.data.Workspace
+import androidx.compose.material.icons.rounded.Close
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
 import dev.suks.midas.domain.BudgetProgress
 import dev.suks.midas.domain.Budgets
 import dev.suks.midas.domain.CategoryShare
@@ -106,15 +112,20 @@ data class HomeState(
     val recent: List<Transaction> = emptyList(),
     val categories: Map<Long, Category> = emptyMap(),
     val grocery: GroceryTotals = GroceryTotals(0, 0, 0, 0),
+    /** Payments read from SMS or notifications, waiting to be added. */
+    val toReview: List<CapturedPayment> = emptyList(),
 )
 
-class HomeViewModel(c: AppContainer) : ViewModel() {
+class HomeViewModel(private val c: AppContainer) : ViewModel() {
     val state = stateOf(
         combine(c.settings.settings, c.transactions.all, c.categories.categories, c.bills.bills, c.grocery.items) { s: Settings, txs, cats, bills, groceries ->
             build(c.today(), s, txs, cats, bills, groceries.map { it.toLine() })
-        },
+        }.combine(c.captures.pending) { state, pending -> state.copy(toReview = pending) },
         HomeState(),
     )
+
+    fun dismissCapture(id: Long) = viewModelScope.launch { c.captures.dismiss(id) }
+    fun dismissAllCaptures() = viewModelScope.launch { c.captures.dismissAll() }
 
     companion object {
         fun build(
@@ -157,7 +168,7 @@ class HomeViewModel(c: AppContainer) : ViewModel() {
 @Composable
 fun HomeScreen(
     onAdd: () -> Unit, onOpenTransaction: (Long) -> Unit, onSeeAll: () -> Unit, onBudgets: () -> Unit,
-    onBills: () -> Unit, onGroceries: () -> Unit, onSettings: () -> Unit,
+    onBills: () -> Unit, onGroceries: () -> Unit, onSettings: () -> Unit, onReviewCapture: (Long) -> Unit = {},
 ) {
     val vm = midasViewModel { HomeViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -169,6 +180,7 @@ fun HomeScreen(
         state, onAdd, onOpenTransaction, onSeeAll, onBudgets, onBills, onGroceries, onSettings,
         workspace = workspaces.firstOrNull { it.id == activeId },
         onWorkspaces = { switching = true },
+        onReviewCapture = onReviewCapture, onDismissCapture = vm::dismissCapture, onDismissAllCaptures = vm::dismissAllCaptures,
     )
     if (switching) WorkspaceSheet(workspacesVm, onDismiss = { switching = false })
 }
@@ -186,6 +198,7 @@ fun HomeContent(
     onAdd: () -> Unit = {}, onOpenTransaction: (Long) -> Unit = {}, onSeeAll: () -> Unit = {}, onBudgets: () -> Unit = {},
     onBills: () -> Unit = {}, onGroceries: () -> Unit = {}, onSettings: () -> Unit = {},
     workspace: Workspace? = null, onWorkspaces: () -> Unit = {},
+    onReviewCapture: (Long) -> Unit = {}, onDismissCapture: (Long) -> Unit = {}, onDismissAllCaptures: () -> Unit = {},
 ) {
     val scroll = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     Scaffold(
@@ -214,6 +227,7 @@ fun HomeContent(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 4.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (state.toReview.isNotEmpty()) item { ReviewCard(state, onReviewCapture, onDismissCapture, onDismissAllCaptures) }
             item { HeroCard(state, onBudgets) }
             item { QuickActions(onAdd, onGroceries, onBills, onSeeAll) }
             if (state.shares.isNotEmpty()) item { WhereItWentCard(state) }
@@ -244,6 +258,45 @@ fun HomeContent(
         }
     }
 }
+
+@Composable
+private fun ReviewCard(state: HomeState, onReview: (Long) -> Unit, onDismiss: (Long) -> Unit, onDismissAll: () -> Unit) {
+    MidasCard(Modifier.testTag("review_card"), containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${state.toReview.size} payment${if (state.toReview.size == 1) "" else "s"} to review",
+                style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f),
+            )
+            if (state.toReview.size > 1) TextButton(onClick = onDismissAll) { Text("Dismiss all") }
+        }
+        state.toReview.take(MAX_REVIEW_ROWS).forEach { p ->
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        (if (p.type == TxType.INCOME) "+" else "") + Money.format(p.amountMinor, state.currency) + " · " + (p.merchant ?: "Unknown payee"),
+                        style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        color = if (p.type == TxType.INCOME) MaterialTheme.money.positive else MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    val day = Instant.ofEpochMilli(p.receivedAt).atZone(ZoneId.systemDefault()).toLocalDate()
+                    Text(
+                        "${p.method.label} · ${p.source} · ${Dates.relative(day, state.today)}",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                    )
+                }
+                IconButton(onClick = { onDismiss(p.id) }) { Icon(Icons.Rounded.Close, "Dismiss") }
+                FilledTonalButton(onClick = { onReview(p.id) }, modifier = Modifier.testTag("review_${p.id}")) { Text("Add") }
+            }
+        }
+        if (state.toReview.size > MAX_REVIEW_ROWS) {
+            Text(
+                "and ${state.toReview.size - MAX_REVIEW_ROWS} more",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+    }
+}
+
+private const val MAX_REVIEW_ROWS = 4
 
 @Composable
 private fun HeroCard(state: HomeState, onBudgets: () -> Unit) {

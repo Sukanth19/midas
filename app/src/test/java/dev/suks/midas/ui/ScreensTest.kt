@@ -14,7 +14,10 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.hasScrollAction
 import dev.suks.midas.data.Bill
+import dev.suks.midas.data.CapturedPayment
 import dev.suks.midas.data.Category
+import dev.suks.midas.domain.PaymentMethod
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import dev.suks.midas.data.GroceryItem
 import dev.suks.midas.data.GroceryPrice
 import dev.suks.midas.data.Settings
@@ -111,6 +114,25 @@ class ScreensTest {
         compose.onNodeWithTag("amount").performTextInput("12.345")
         // Three decimals isn't a valid rupee amount, so nothing is accepted.
         assertEquals("", state.amountText)
+    }
+
+    @Test fun `home lists captured payments to review`() {
+        val swiggy = CapturedPayment(7, 45_000, TxType.EXPENSE, "Swiggy", PaymentMethod.UPI, "1234", "SMS", "", System.currentTimeMillis())
+        val unknown = swiggy.copy(id = 8, merchant = null, amountMinor = 12_000)
+        var reviewed: Long? = null
+        var dismissed: Long? = null
+        compose.setContent {
+            MidasTheme {
+                HomeContent(HomeState(loaded = true, today = today, toReview = listOf(swiggy, unknown)), onReviewCapture = { reviewed = it }, onDismissCapture = { dismissed = it })
+            }
+        }
+        compose.onNodeWithText("2 payments to review").assertIsDisplayed()
+        compose.onNodeWithText("₹450 · Swiggy").assertIsDisplayed()
+        compose.onNodeWithText("₹120 · Unknown payee").assertIsDisplayed()
+        compose.onNodeWithTag("review_7").performClick()
+        assertEquals(7L, reviewed)
+        compose.onAllNodesWithContentDescription("Dismiss")[1].performClick()
+        assertEquals(8L, dismissed)
     }
 
     @Test fun `grocery list shows estimate and toggles items`() {

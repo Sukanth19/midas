@@ -19,7 +19,7 @@ class Converters {
 @Database(
     entities = [
         Category::class, Transaction::class, BuyItem::class, GroceryItem::class, GroceryWeek::class, Bill::class,
-        GroceryPrice::class,
+        GroceryPrice::class, CapturedPayment::class,
     ],
     version = 2,
     exportSchema = true,
@@ -32,6 +32,7 @@ abstract class MidasDatabase : RoomDatabase() {
     abstract fun buyItems(): BuyItemDao
     abstract fun grocery(): GroceryDao
     abstract fun bills(): BillDao
+    abstract fun captures(): CaptureDao
 
     companion object {
         fun build(context: Context, inMemory: Boolean = false, name: String = Workspace.databaseName(Workspace.DEFAULT_ID)): MidasDatabase {

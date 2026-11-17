@@ -58,7 +58,7 @@ import kotlin.reflect.KClass
 @Serializable data class ListsRoute(val tab: Int = 0)
 @Serializable object BillsRoute
 @Serializable object InsightsRoute
-@Serializable data class EditTransactionRoute(val id: Long = 0, val income: Boolean = false)
+@Serializable data class EditTransactionRoute(val id: Long = 0, val income: Boolean = false, val captureId: Long = 0)
 @Serializable object BudgetsRoute
 @Serializable object SettingsRoute
 @Serializable object CategoriesRoute
@@ -135,6 +135,7 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit) {
                     onBills = { nav.switchTab(BillsRoute) },
                     onGroceries = { nav.switchTab(ListsRoute(tab = 1)) },
                     onSettings = { nav.navigate(SettingsRoute) },
+                    onReviewCapture = { nav.navigate(EditTransactionRoute(captureId = it)) },
                 )
             }
             composable<ActivityRoute> {
@@ -148,7 +149,7 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit) {
             composable<InsightsRoute> { InsightsScreen(onBudgets = { nav.navigate(BudgetsRoute) }) }
             composable<EditTransactionRoute> {
                 val r = it.toRoute<EditTransactionRoute>()
-                EditTransactionScreen(id = r.id, startAsIncome = r.income, onDone = { nav.popBackStack() })
+                EditTransactionScreen(id = r.id, startAsIncome = r.income, onDone = { nav.popBackStack() }, captureId = r.captureId)
             }
             composable<BudgetsRoute> { BudgetsScreen(onBack = { nav.popBackStack() }) }
             composable<SettingsRoute> { SettingsScreen(onBack = { nav.popBackStack() }, onCategories = { nav.navigate(CategoriesRoute) }) }

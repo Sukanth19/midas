@@ -58,7 +58,9 @@ import dev.suks.midas.data.Category
 import dev.suks.midas.data.Transaction
 import dev.suks.midas.domain.Money
 import dev.suks.midas.domain.PaymentMethod
+import dev.suks.midas.domain.TxSource
 import dev.suks.midas.domain.TxType
+import java.time.Instant
 import dev.suks.midas.ui.components.CategoryIcons
 import dev.suks.midas.ui.components.ConfirmDialog
 import dev.suks.midas.ui.components.DateField
@@ -86,13 +88,19 @@ data class EditTxState(
     val categories: List<Category> = emptyList(),
     val showErrors: Boolean = false,
     val done: Boolean = false,
+    /** Set when reviewing a captured payment: where it was read from. */
+    val fromCapture: String? = null,
 ) {
     val amountMinor: Long? get() = Money.parse(amountText, currency)?.takeIf { it > 0 }
     val visibleCategories: List<Category> get() = categories.filter { it.type == type }
     val canSave: Boolean get() = amountMinor != null && categoryId != null
 }
 
-class EditTransactionViewModel(private val c: AppContainer, private val id: Long, startAsIncome: Boolean) : ViewModel() {
+class EditTransactionViewModel(
+    private val c: AppContainer, private val id: Long, startAsIncome: Boolean,
+    /** A captured payment being reviewed; saving marks it added. */
+    private val captureId: Long = 0,
+) : ViewModel() {
     private val _state = MutableStateFlow(EditTxState(type = if (startAsIncome) TxType.INCOME else TxType.EXPENSE))
     val state = _state.asStateFlow()
     private var original: Transaction? = null
@@ -102,14 +110,24 @@ class EditTransactionViewModel(private val c: AppContainer, private val id: Long
             val settings = c.settings.current()
             val cats = c.categories.categories.first()
             val tx = if (id != 0L) c.transactions.get(id) else null
+            val capture = if (tx == null && captureId != 0L) c.captures.get(captureId) else null
+            val guessedCategory = capture?.merchant?.let { c.transactions.lastCategoryFor(it, capture.type) }
             original = tx
             _state.update { s ->
                 val base = s.copy(loading = false, currency = settings.currency, today = c.today(), date = c.today(), categories = cats)
-                if (tx == null) base
-                else base.copy(
-                    isNew = false, type = tx.type, amountText = Money.toInput(tx.amountMinor, settings.currency), title = tx.title,
-                    note = tx.note, categoryId = tx.categoryId, date = tx.date, paymentMethod = tx.paymentMethod,
-                )
+                when {
+                    tx != null -> base.copy(
+                        isNew = false, type = tx.type, amountText = Money.toInput(tx.amountMinor, settings.currency), title = tx.title,
+                        note = tx.note, categoryId = tx.categoryId, date = tx.date, paymentMethod = tx.paymentMethod,
+                    )
+                    capture != null -> base.copy(
+                        type = capture.type, amountText = Money.toInput(capture.amountMinor, settings.currency),
+                        title = capture.merchant.orEmpty(), categoryId = guessedCategory, paymentMethod = capture.method,
+                        date = Instant.ofEpochMilli(capture.receivedAt).atZone(c.clock.zone).toLocalDate(),
+                        fromCapture = capture.source,
+                    )
+                    else -> base
+                }
             }
         }
     }
@@ -130,13 +148,17 @@ class EditTransactionViewModel(private val c: AppContainer, private val id: Long
         if (amount == null || s.categoryId == null) { _state.update { it.copy(showErrors = true) }; return }
         val catName = s.categories.firstOrNull { it.id == s.categoryId }?.name ?: "Expense"
         viewModelScope.launch {
-            val base = original ?: Transaction(amountMinor = amount, type = s.type, categoryId = s.categoryId, title = "", date = s.date)
-            c.transactions.save(
+            val base = original ?: Transaction(
+                amountMinor = amount, type = s.type, categoryId = s.categoryId, title = "", date = s.date,
+                source = if (captureId != 0L) TxSource.CAPTURED else TxSource.MANUAL,
+            )
+            val txId = c.transactions.save(
                 base.copy(
                     amountMinor = amount, type = s.type, categoryId = s.categoryId, title = s.title.trim().ifBlank { catName },
                     note = s.note.trim(), date = s.date, paymentMethod = s.paymentMethod,
                 ),
             )
+            if (captureId != 0L && original == null) c.captures.markAdded(captureId, txId)
             _state.update { it.copy(done = true) }
         }
     }
@@ -148,8 +170,8 @@ class EditTransactionViewModel(private val c: AppContainer, private val id: Long
 }
 
 @Composable
-fun EditTransactionScreen(id: Long, startAsIncome: Boolean, onDone: () -> Unit) {
-    val vm = midasViewModel(key = "tx-$id") { EditTransactionViewModel(it, id, startAsIncome) }
+fun EditTransactionScreen(id: Long, startAsIncome: Boolean, onDone: () -> Unit, captureId: Long = 0) {
+    val vm = midasViewModel(key = "tx-$id-$captureId") { EditTransactionViewModel(it, id, startAsIncome, captureId) }
     val state by vm.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.done) { if (state.done) onDone() }
     EditTransactionContent(
@@ -181,7 +203,16 @@ fun EditTransactionContent(
         topBar = {
             TopAppBar(
                 navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Close") } },
-                title = { Text(if (state.isNew) (if (state.type == TxType.INCOME) "New income" else "New expense") else "Edit transaction") },
+                title = {
+                    Text(
+                        when {
+                            state.fromCapture != null -> "Review payment"
+                            !state.isNew -> "Edit transaction"
+                            state.type == TxType.INCOME -> "New income"
+                            else -> "New expense"
+                        },
+                    )
+                },
                 actions = {
                     if (!state.isNew) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Rounded.DeleteOutline, "Delete") }
                 },
@@ -199,6 +230,12 @@ fun EditTransactionContent(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            state.fromCapture?.let { source ->
+                Text(
+                    "Read from $source. Check the details, pick a category and save.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 TxType.entries.forEachIndexed { i, t ->
                     SegmentedButton(

@@ -36,6 +36,7 @@ fun TransactionRow(tx: Transaction, category: Category?, currency: String, onCli
                     TxSource.BILL -> add("Bill")
                     TxSource.BUY_LIST -> add("Buy list")
                     TxSource.GROCERY -> add("Groceries")
+                    TxSource.CAPTURED -> add("Auto")
                     TxSource.MANUAL -> {}
                 }
                 subtitle?.let(::add)
