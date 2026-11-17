@@ -6,7 +6,7 @@
     android:background="@drawable/widget_preview_bg" android:orientation="vertical" android:padding="16dp">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
         <FrameLayout android:layout_width="32dp" android:layout_height="32dp" android:background="@drawable/widget_preview_chip_primary">
-            <ImageView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:src="@drawable/ic_widget_receipt" android:tint="@color/widget_on_primary_container" />
+            <ImageView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:src="@drawable/ic_widget_receipt" android:tint="@color/widget_on_primary_container" tools:ignore="UseAppTint" />
         </FrameLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="10dp" android:orientation="vertical">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Upcoming bills" android:textColor="@color/widget_on_surface" android:textSize="16sp" android:textStyle="bold" />
