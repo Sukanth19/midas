@@ -3,7 +3,6 @@ package dev.suks.midas.data
 import androidx.test.core.app.ApplicationProvider
 import dev.suks.midas.domain.CsvTransaction
 import dev.suks.midas.domain.Frequency
-import dev.suks.midas.domain.ParsedPayment
 import dev.suks.midas.domain.PaymentMethod
 import dev.suks.midas.domain.TxSource
 import dev.suks.midas.domain.TxType
@@ -213,28 +212,6 @@ class RepositoryTest {
         assertEquals(listOf(5_600L, 6_200L), prices.map { it.unitPriceMinor })
         assertTrue(prices.all { it.name == "milk" })
         assertEquals(today.plusDays(7), prices.last().date)
-    }
-
-    @Test fun `captured payments are de-duplicated across sms and app alerts`() = runTest {
-        val captures = CaptureRepository(db, onChanged)
-        val at = 1_700_000_000_000L
-        val sms = ParsedPayment(45_000, TxType.EXPENSE, null, PaymentMethod.UPI, "1234")
-        val app = sms.copy(merchant = "Swiggy", account = null)
-        val id = captures.capture(sms, "SMS", "Rs.450 debited", at)!!
-        assertNull(captures.capture(app, "Google Pay", "₹450 paid to Swiggy", at + 60_000))
-        val pending = captures.pending.first()
-        assertEquals(1, pending.size)
-        assertEquals("Swiggy", pending.single().merchant)
-        // A different amount, or the same amount much later, is a new payment.
-        assertNotNull(captures.capture(sms.copy(amountMinor = 46_000), "SMS", "", at))
-        assertNotNull(captures.capture(sms, "SMS", "", at + CaptureRepository.DUPLICATE_WINDOW_MS + 1))
-        assertEquals(3, captures.pending.first().size)
-
-        val txId = tx.save(Transaction(amountMinor = 45_000, type = TxType.EXPENSE, categoryId = catId("Food & Dining"), title = "Swiggy", date = today))
-        captures.markAdded(id, txId)
-        captures.dismissAll()
-        assertTrue(captures.pending.first().isEmpty())
-        assertEquals(catId("Food & Dining"), tx.lastCategoryFor("swiggy ", TxType.EXPENSE))
     }
 
     @Test fun `people, shared expenses and settle-ups`() = runTest {

@@ -68,4 +68,18 @@ class MigrationTest {
             room.close()
         }
     }
+
+    @Test fun `the 1_1_0 capture table is dropped`() = runTest {
+        createFromSchema(2) { db ->
+            db.execSQL("INSERT INTO captured_payments (amountMinor, type, merchant, method, account, source, text, receivedAt, status, transactionId) VALUES (45000, 'EXPENSE', 'Swiggy', 'UPI', NULL, 'SMS', '', 0, 'PENDING', NULL)")
+            db.execSQL("INSERT INTO people (name, createdAt) VALUES ('Rahul', 0)")
+        }
+        val room = MidasDatabase.build(context, name = name)
+        try {
+            assertEquals("Rahul", room.split().getPeople().single().name)
+            room.openHelper.readableDatabase.query("SELECT name FROM sqlite_master WHERE name = 'captured_payments'").use { assertEquals(0, it.count) }
+        } finally {
+            room.close()
+        }
+    }
 }

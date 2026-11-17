@@ -61,9 +61,7 @@ import dev.suks.midas.data.Transaction
 import dev.suks.midas.domain.Money
 import dev.suks.midas.domain.PaymentMethod
 import dev.suks.midas.domain.PaymentParser
-import dev.suks.midas.domain.TxSource
 import dev.suks.midas.domain.TxType
-import java.time.Instant
 import dev.suks.midas.ui.components.CategoryIcons
 import dev.suks.midas.ui.components.ConfirmDialog
 import dev.suks.midas.ui.components.DateField
@@ -91,8 +89,6 @@ data class EditTxState(
     val categories: List<Category> = emptyList(),
     val showErrors: Boolean = false,
     val done: Boolean = false,
-    /** Set when reviewing a captured payment: where it was read from. */
-    val fromCapture: String? = null,
     /** Opened from text shared by another app. */
     val fromShare: Boolean = false,
     /** People this workspace is shared with; empty for a personal one. */
@@ -114,8 +110,6 @@ data class EditTxState(
 
 class EditTransactionViewModel(
     private val c: AppContainer, private val id: Long, startAsIncome: Boolean,
-    /** A captured payment being reviewed; saving marks it added. */
-    private val captureId: Long = 0,
     private val sharedText: String = "",
 ) : ViewModel() {
     private val _state = MutableStateFlow(EditTxState(type = if (startAsIncome) TxType.INCOME else TxType.EXPENSE))
@@ -128,8 +122,6 @@ class EditTransactionViewModel(
             val cats = c.categories.categories.first()
             val people = c.split.getPeople()
             val tx = if (id != 0L) c.transactions.get(id) else null
-            val capture = if (tx == null && captureId != 0L) c.captures.get(captureId) else null
-            val guessedCategory = capture?.merchant?.let { c.transactions.lastCategoryFor(it, capture.type) }
             original = tx
             _state.update { s ->
                 val base = s.copy(
@@ -141,12 +133,6 @@ class EditTransactionViewModel(
                         isNew = false, type = tx.type, amountText = Money.toInput(tx.amountMinor, settings.currency), title = tx.title,
                         note = tx.note, categoryId = tx.categoryId, date = tx.date, paymentMethod = tx.paymentMethod,
                         shared = tx.shared, paidById = tx.paidById,
-                    )
-                    capture != null -> base.copy(
-                        type = capture.type, amountText = Money.toInput(capture.amountMinor, settings.currency),
-                        title = capture.merchant.orEmpty(), categoryId = guessedCategory, paymentMethod = capture.method,
-                        date = Instant.ofEpochMilli(capture.receivedAt).atZone(c.clock.zone).toLocalDate(),
-                        fromCapture = capture.source,
                     )
                     sharedText.isNotBlank() -> prefillFromShare(base, sharedText)
                     else -> base
@@ -187,16 +173,14 @@ class EditTransactionViewModel(
         viewModelScope.launch {
             val base = original ?: Transaction(
                 amountMinor = amount, type = s.type, categoryId = s.categoryId, title = "", date = s.date,
-                source = if (captureId != 0L) TxSource.CAPTURED else TxSource.MANUAL,
             )
-            val txId = c.transactions.save(
+            c.transactions.save(
                 base.copy(
                     amountMinor = amount, type = s.type, categoryId = s.categoryId, title = s.title.trim().ifBlank { catName },
                     note = s.note.trim(), date = s.date, paymentMethod = s.paymentMethod,
                     shared = s.canSplit && s.shared, paidById = s.paidById.takeIf { s.canSplit },
                 ),
             )
-            if (captureId != 0L && original == null) c.captures.markAdded(captureId, txId)
             _state.update { it.copy(done = true) }
         }
     }
@@ -208,8 +192,8 @@ class EditTransactionViewModel(
 }
 
 @Composable
-fun EditTransactionScreen(id: Long, startAsIncome: Boolean, onDone: () -> Unit, captureId: Long = 0, sharedText: String = "") {
-    val vm = midasViewModel(key = "tx-$id-$captureId-${sharedText.hashCode()}") { EditTransactionViewModel(it, id, startAsIncome, captureId, sharedText) }
+fun EditTransactionScreen(id: Long, startAsIncome: Boolean, onDone: () -> Unit, sharedText: String = "") {
+    val vm = midasViewModel(key = "tx-$id-${sharedText.hashCode()}") { EditTransactionViewModel(it, id, startAsIncome, sharedText) }
     val state by vm.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.done) { if (state.done) onDone() }
     EditTransactionContent(
@@ -247,7 +231,6 @@ fun EditTransactionContent(
                 title = {
                     Text(
                         when {
-                            state.fromCapture != null -> "Review payment"
                             !state.isNew -> "Edit transaction"
                             state.type == TxType.INCOME -> "New income"
                             else -> "New expense"
@@ -271,10 +254,9 @@ fun EditTransactionContent(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            val readFrom = state.fromCapture ?: "shared text".takeIf { state.fromShare }
-            readFrom?.let { source ->
+            if (state.fromShare) {
                 Text(
-                    "Read from $source. Check the details, pick a category and save.",
+                    "Read from shared text. Check the details, pick a category and save.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("read_from"),
                 )

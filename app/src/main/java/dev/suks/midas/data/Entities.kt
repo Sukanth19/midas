@@ -7,7 +7,6 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import dev.suks.midas.domain.CaptureStatus
 import dev.suks.midas.domain.Frequency
 import dev.suks.midas.domain.GroceryLine
 import dev.suks.midas.domain.Payment
@@ -146,24 +145,6 @@ data class GroceryPrice(
 ) {
     fun toPoint() = PricePoint(date, unitPriceMinor)
 }
-
-/** A payment read from a bank SMS or a payment app's notification, waiting to be added or dismissed. */
-@Entity(tableName = "captured_payments", indices = [Index("status"), Index("receivedAt")])
-data class CapturedPayment(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val amountMinor: Long,
-    val type: TxType,
-    val merchant: String?,
-    val method: PaymentMethod,
-    val account: String?,
-    /** Where it came from, e.g. "SMS" or "Google Pay". */
-    val source: String,
-    /** The original message, so it can be checked when reviewing. */
-    val text: String,
-    val receivedAt: Long,
-    val status: CaptureStatus = CaptureStatus.PENDING,
-    val transactionId: Long? = null,
-)
 
 @Serializable
 @Entity(tableName = "bills", indices = [Index("nextDue")])

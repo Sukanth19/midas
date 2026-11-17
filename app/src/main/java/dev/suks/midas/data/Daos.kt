@@ -6,7 +6,6 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import androidx.room.Upsert
-import dev.suks.midas.domain.CaptureStatus
 import dev.suks.midas.domain.TxType
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
@@ -140,30 +139,6 @@ interface BillDao {
 
     @Query("DELETE FROM bills WHERE id = :id")
     suspend fun delete(id: Long)
-}
-
-@Dao
-interface CaptureDao {
-    @Query("SELECT * FROM captured_payments WHERE status = 'PENDING' ORDER BY receivedAt DESC")
-    fun observePending(): Flow<List<CapturedPayment>>
-
-    @Query("SELECT * FROM captured_payments WHERE id = :id")
-    suspend fun get(id: Long): CapturedPayment?
-
-    @Query("SELECT * FROM captured_payments WHERE amountMinor = :amount AND type = :type AND receivedAt BETWEEN :from AND :to ORDER BY receivedAt LIMIT 1")
-    suspend fun findSimilar(amount: Long, type: TxType, from: Long, to: Long): CapturedPayment?
-
-    @Insert suspend fun insert(p: CapturedPayment): Long
-    @Update suspend fun update(p: CapturedPayment)
-
-    @Query("UPDATE captured_payments SET status = :status, transactionId = :txId WHERE id = :id")
-    suspend fun setStatus(id: Long, status: CaptureStatus, txId: Long? = null)
-
-    @Query("UPDATE captured_payments SET status = 'DISMISSED' WHERE status = 'PENDING'")
-    suspend fun dismissAll()
-
-    @Query("DELETE FROM captured_payments WHERE status != 'PENDING' AND receivedAt < :before")
-    suspend fun pruneHandled(before: Long)
 }
 
 @Dao

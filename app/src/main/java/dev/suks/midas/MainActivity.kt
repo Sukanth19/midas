@@ -126,7 +126,6 @@ class MainActivity : FragmentActivity() {
         const val ACTION_ADD_EXPENSE = "dev.suks.midas.ADD_EXPENSE"
         const val ACTION_OPEN_GROCERIES = "dev.suks.midas.OPEN_GROCERIES"
         const val ACTION_OPEN_BILLS = "dev.suks.midas.OPEN_BILLS"
-        const val ACTION_OPEN_HOME = "dev.suks.midas.OPEN_HOME"
         private const val MAX_SHARED_TEXT = 1_000
     }
 }

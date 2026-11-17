@@ -8,10 +8,6 @@ import dev.suks.midas.AppContainer
 import dev.suks.midas.data.MidasDatabase
 import dev.suks.midas.data.SettingsRepository
 import dev.suks.midas.data.Transaction
-import dev.suks.midas.domain.CaptureStatus
-import dev.suks.midas.domain.ParsedPayment
-import dev.suks.midas.domain.PaymentMethod
-import dev.suks.midas.domain.TxSource
 import dev.suks.midas.domain.TxType
 import dev.suks.midas.ui.transactions.EditTransactionViewModel
 import dev.suks.midas.ui.transactions.EditTxState
@@ -75,22 +71,4 @@ class EditTransactionViewModelTest {
         assertEquals("dinner with friends", s.note)
     }
 
-    @Test fun `saving a reviewed capture marks it added`() {
-        val id = runBlocking {
-            c.captures.capture(ParsedPayment(12_000, TxType.EXPENSE, "Rapido", PaymentMethod.UPI, null), "SMS", "", today.atTime(9, 0).atZone(zone).toInstant().toEpochMilli())!!
-        }
-        val vm = EditTransactionViewModel(c, 0, false, captureId = id)
-        val s = vm.await { !it.loading }
-        assertEquals("120", s.amountText)
-        assertEquals("SMS", s.fromCapture)
-        assertEquals(today, s.date)
-        vm.setCategory(runBlocking { c.categories.getAll().first { it.name == "Transport" }.id })
-        vm.save()
-        vm.await { it.done }
-        val capture = runBlocking { c.captures.get(id)!! }
-        assertEquals(CaptureStatus.ADDED, capture.status)
-        val tx = runBlocking { c.transactions.get(capture.transactionId!!)!! }
-        assertEquals(TxSource.CAPTURED, tx.source)
-        assertEquals("Rapido", tx.title)
-    }
 }

@@ -62,7 +62,6 @@ import kotlin.reflect.KClass
 @Serializable data class EditTransactionRoute(
     val id: Long = 0,
     val income: Boolean = false,
-    val captureId: Long = 0,
     /** Text shared from another app, read for an amount and payee. */
     val sharedText: String = "",
 )
@@ -105,7 +104,6 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit, shared
             MainActivity.ACTION_ADD_EXPENSE -> nav.navigate(EditTransactionRoute())
             MainActivity.ACTION_OPEN_GROCERIES -> nav.switchTab(ListsRoute(tab = 1))
             MainActivity.ACTION_OPEN_BILLS -> nav.switchTab(BillsRoute)
-            MainActivity.ACTION_OPEN_HOME -> nav.switchTab(HomeRoute)
             else -> return@LaunchedEffect
         }
         onActionHandled()
@@ -153,7 +151,6 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit, shared
                     onBills = { nav.switchTab(BillsRoute) },
                     onGroceries = { nav.switchTab(ListsRoute(tab = 1)) },
                     onSettings = { nav.navigate(SettingsRoute) },
-                    onReviewCapture = { nav.navigate(EditTransactionRoute(captureId = it)) },
                     onSplit = { nav.navigate(SplitRoute) },
                 )
             }
@@ -168,7 +165,7 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit, shared
             composable<InsightsRoute> { InsightsScreen(onBudgets = { nav.navigate(BudgetsRoute) }) }
             composable<EditTransactionRoute> {
                 val r = it.toRoute<EditTransactionRoute>()
-                EditTransactionScreen(id = r.id, startAsIncome = r.income, onDone = { nav.popBackStack() }, captureId = r.captureId, sharedText = r.sharedText)
+                EditTransactionScreen(id = r.id, startAsIncome = r.income, onDone = { nav.popBackStack() }, sharedText = r.sharedText)
             }
             composable<BudgetsRoute> { BudgetsScreen(onBack = { nav.popBackStack() }) }
             composable<SettingsRoute> {

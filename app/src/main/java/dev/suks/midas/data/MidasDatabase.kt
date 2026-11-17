@@ -3,6 +3,8 @@ package dev.suks.midas.data
 import android.content.Context
 import androidx.room.AutoMigration
 import androidx.room.Database
+import androidx.room.DeleteTable
+import androidx.room.migration.AutoMigrationSpec
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
@@ -19,11 +21,11 @@ class Converters {
 @Database(
     entities = [
         Category::class, Transaction::class, BuyItem::class, GroceryItem::class, GroceryWeek::class, Bill::class,
-        GroceryPrice::class, CapturedPayment::class, Person::class, Settlement::class,
+        GroceryPrice::class, Person::class, Settlement::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3, spec = DropCapturedPayments::class)],
 )
 @TypeConverters(Converters::class)
 abstract class MidasDatabase : RoomDatabase() {
@@ -32,7 +34,6 @@ abstract class MidasDatabase : RoomDatabase() {
     abstract fun buyItems(): BuyItemDao
     abstract fun grocery(): GroceryDao
     abstract fun bills(): BillDao
-    abstract fun captures(): CaptureDao
     abstract fun split(): SplitDao
     abstract fun backup(): BackupDao
 
@@ -47,6 +48,10 @@ abstract class MidasDatabase : RoomDatabase() {
         }
     }
 }
+
+/** 1.1.0 kept SMS and payment-app captures here; that feature was removed in 1.1.1. */
+@DeleteTable(tableName = "captured_payments")
+class DropCapturedPayments : AutoMigrationSpec
 
 /** Seeds default categories the first time the database is created. */
 private object SeedCallback : RoomDatabase.Callback() {
