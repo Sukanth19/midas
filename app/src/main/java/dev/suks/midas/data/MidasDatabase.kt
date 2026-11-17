@@ -34,6 +34,7 @@ abstract class MidasDatabase : RoomDatabase() {
     abstract fun bills(): BillDao
     abstract fun captures(): CaptureDao
     abstract fun split(): SplitDao
+    abstract fun backup(): BackupDao
 
     companion object {
         fun build(context: Context, inMemory: Boolean = false, name: String = Workspace.databaseName(Workspace.DEFAULT_ID)): MidasDatabase {

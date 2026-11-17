@@ -87,6 +87,13 @@ class WorkspaceRegistry(
         true
     }
 
+    /** Replaces the whole list (restoring a backup). The default workspace is always kept. */
+    fun replaceAll(list: List<Workspace>, activeId: String) = synchronized(lock) {
+        val default = list.firstOrNull { it.isDefault } ?: _workspaces.value.first { it.isDefault }
+        save(listOf(default) + list.filterNot { it.isDefault }.distinctBy { it.id })
+        select(activeId.takeIf { id -> _workspaces.value.any { it.id == id } } ?: Workspace.DEFAULT_ID)
+    }
+
     fun select(id: String): Boolean = synchronized(lock) {
         if (_workspaces.value.none { it.id == id }) return false
         prefs.edit { putString(KEY_ACTIVE, id) }

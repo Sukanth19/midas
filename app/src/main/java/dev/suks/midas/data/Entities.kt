@@ -1,3 +1,5 @@
+@file:UseSerializers(LocalDateSerializer::class)
+
 package dev.suks.midas.data
 
 import androidx.room.ColumnInfo
@@ -17,7 +19,10 @@ import dev.suks.midas.domain.TxPoint
 import dev.suks.midas.domain.TxSource
 import dev.suks.midas.domain.TxType
 import java.time.LocalDate
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 
+@Serializable
 @Entity(tableName = "categories")
 data class Category(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -31,6 +36,7 @@ data class Category(
     val sortOrder: Int = 0,
 )
 
+@Serializable
 @Entity(
     tableName = "transactions",
     foreignKeys = [ForeignKey(Category::class, ["id"], ["categoryId"], onDelete = ForeignKey.SET_NULL)],
@@ -57,6 +63,7 @@ data class Transaction(
 }
 
 /** Someone you share a workspace's costs with: a roommate, a friend on a trip. */
+@Serializable
 @Entity(tableName = "people")
 data class Person(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -65,6 +72,7 @@ data class Person(
 )
 
 /** Money handed over to square up. A null id means you. */
+@Serializable
 @Entity(tableName = "settlements")
 data class Settlement(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -77,6 +85,7 @@ data class Settlement(
     fun toPayment() = Payment(fromId, toId, amountMinor)
 }
 
+@Serializable
 @Entity(tableName = "buy_items", indices = [Index("purchased")])
 data class BuyItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -95,6 +104,7 @@ data class BuyItem(
 )
 
 /** A line on the reusable weekly grocery list. Unchecked every time a new week starts. */
+@Serializable
 @Entity(tableName = "grocery_items")
 data class GroceryItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -112,6 +122,7 @@ data class GroceryItem(
 }
 
 /** One finished grocery week, kept for the history and the cost trend chart. */
+@Serializable
 @Entity(tableName = "grocery_weeks")
 data class GroceryWeek(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -123,6 +134,7 @@ data class GroceryWeek(
 )
 
 /** A grocery item's price per unit as it was on [date]; a new row is kept each time it changes. */
+@Serializable
 @Entity(tableName = "grocery_prices", indices = [Index("name")])
 data class GroceryPrice(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -153,6 +165,7 @@ data class CapturedPayment(
     val transactionId: Long? = null,
 )
 
+@Serializable
 @Entity(tableName = "bills", indices = [Index("nextDue")])
 data class Bill(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
