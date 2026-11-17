@@ -27,6 +27,9 @@ data class Settings(
     val captureSms: Boolean = false,
     /** What to call you in settle-up messages. */
     val myName: String = "Me",
+    /** Folder (a document tree URI) that gets a backup every day; null = off. */
+    val backupFolder: String? = null,
+    val lastAutoBackup: Long = 0,
 )
 
 /** One DataStore per file for the whole process (DataStore forbids two instances on one file). */
@@ -69,6 +72,8 @@ class SettingsRepository(
         val appLock = booleanPreferencesKey("app_lock")
         val captureSms = booleanPreferencesKey("capture_sms")
         val myName = stringPreferencesKey("my_name")
+        val backupFolder = stringPreferencesKey("backup_folder")
+        val lastAutoBackup = longPreferencesKey("last_auto_backup")
     }
 
     val settings: Flow<Settings> = combine(global.data, workspace.data) { g, w ->
@@ -81,6 +86,8 @@ class SettingsRepository(
             appLock = g[Keys.appLock] ?: false,
             captureSms = g[Keys.captureSms] ?: false,
             myName = g[Keys.myName] ?: "Me",
+            backupFolder = g[Keys.backupFolder],
+            lastAutoBackup = g[Keys.lastAutoBackup] ?: 0,
         )
     }
 
@@ -93,6 +100,8 @@ class SettingsRepository(
     suspend fun setBillReminders(on: Boolean) = edit(global) { it[Keys.reminders] = on }
     suspend fun setAppLock(on: Boolean) = edit(global) { it[Keys.appLock] = on }
     suspend fun setCaptureSms(on: Boolean) = edit(global) { it[Keys.captureSms] = on }
+    suspend fun setBackupFolder(uri: String?) = edit(global) { if (uri == null) it.remove(Keys.backupFolder) else it[Keys.backupFolder] = uri }
+    suspend fun setLastAutoBackup(at: Long) = edit(global) { it[Keys.lastAutoBackup] = at }
     suspend fun setMyName(name: String) = edit(global) { it[Keys.myName] = Workspace.cleanName(name) ?: "Me" }
 
     private suspend fun edit(store: DataStore<Preferences>, block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {

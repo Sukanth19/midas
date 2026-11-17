@@ -22,6 +22,10 @@ import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.FolderOpen
+import dev.suks.midas.data.BackupFolder
+import dev.suks.midas.data.BackupWorker
+import androidx.core.net.toUri
 import androidx.compose.material.icons.rounded.Restore
 import dev.suks.midas.MidasApplication
 import dev.suks.midas.data.BackupFile
@@ -124,6 +128,21 @@ class SettingsViewModel(private val c: AppContainer, private val backups: Backup
 
     fun cancelRestore() { _pendingRestore.value = null }
 
+    fun setBackupFolder(context: Context, uri: Uri?) = viewModelScope.launch {
+        val old = c.settings.current().backupFolder?.toUri()
+        if (old != null && old != uri) runCatching { context.contentResolver.releasePersistableUriPermission(old, FOLDER_ACCESS) }
+        if (uri == null) {
+            BackupWorker.cancel(context)
+            c.settings.setBackupFolder(null)
+            return@launch
+        }
+        val ok = runCatching { context.contentResolver.takePersistableUriPermission(uri, FOLDER_ACCESS) }.isSuccess
+        if (!ok) { _message.value = "Midas couldn't get access to that folder"; return@launch }
+        c.settings.setBackupFolder(uri.toString())
+        BackupWorker.schedule(context)
+        _message.value = "Backing up to ${BackupFolder.label(uri)} every day"
+    }
+
     fun setCurrency(code: String) = viewModelScope.launch { c.settings.setCurrency(code) }
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { c.settings.setTheme(mode) }
     fun setDynamic(on: Boolean) = viewModelScope.launch { c.settings.setDynamicColor(on) }
@@ -178,6 +197,9 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> 
     }
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { vm.openBackup(it, context.contentResolver) }
+    }
+    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let { vm.setBackupFolder(context, it) }
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { vm.import(it, context.contentResolver) }
@@ -268,6 +290,18 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> 
             Row(Icons.Rounded.Backup, "Back up now", "Every workspace, transaction, list and bill in one file") {
                 backupLauncher.launch(BackupManager.fileName(LocalDate.now()))
             }
+            val folder = s.backupFolder?.toUri()
+            Row(
+                Icons.Rounded.FolderOpen, "Automatic daily backup",
+                when {
+                    folder == null -> "Off. Pick a folder, e.g. one Google Drive or Syncthing syncs"
+                    s.lastAutoBackup > 0 -> "To ${BackupFolder.label(folder)} · last ${Dates.shortDate(Instant.ofEpochMilli(s.lastAutoBackup).atZone(ZoneId.systemDefault()).toLocalDate(), LocalDate.now())}"
+                    else -> "To ${BackupFolder.label(folder)}"
+                },
+                trailing = {
+                    Switch(folder != null, { on -> if (on) folderLauncher.launch(null) else vm.setBackupFolder(context, null) }, modifier = Modifier.testTag("auto_backup"))
+                },
+            ) { folderLauncher.launch(folder) }
             Row(Icons.Rounded.Restore, "Restore from backup", "Replaces everything in Midas with a backup file") {
                 restoreLauncher.launch(arrayOf("application/json", "application/octet-stream", "text/*"))
             }
@@ -360,3 +394,5 @@ private fun openListenerSettings(context: Context) {
 private fun openAppInfo(context: Context) {
     runCatching { context.startActivity(Intent(SystemSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))) }
 }
+
+private const val FOLDER_ACCESS = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION

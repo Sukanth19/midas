@@ -116,4 +116,18 @@ class BackupTest {
         assertEquals(listOf(BackupManager.fileName(today.minusDays(8)), BackupManager.fileName(today.minusDays(9))), BackupManager.toPrune(names))
         assertEquals("midas-backup-2026-11-11.json", BackupManager.fileName(today))
     }
+
+    @Test fun `folder labels`() {
+        val tree = android.provider.DocumentsContract.buildTreeDocumentUri("com.android.externalstorage.documents", "primary:Documents/Midas")
+        assertEquals("Documents/Midas", BackupFolder.label(tree))
+        assertEquals("Phone storage", BackupFolder.label(android.provider.DocumentsContract.buildTreeDocumentUri("com.android.externalstorage.documents", "primary:")))
+    }
+
+    @Test fun `backup folder setting can be cleared`() = runTest {
+        val settings = SettingsRepository(store("folder-test"))
+        settings.setBackupFolder("content://tree/1")
+        assertEquals("content://tree/1", settings.current().backupFolder)
+        settings.setBackupFolder(null)
+        assertNull(settings.current().backupFolder)
+    }
 }
