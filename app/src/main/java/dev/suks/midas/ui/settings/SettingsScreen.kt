@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Palette
@@ -59,7 +60,9 @@ import dev.suks.midas.domain.CsvTransaction
 import dev.suks.midas.domain.Money
 import dev.suks.midas.domain.ThemeMode
 import dev.suks.midas.domain.TransactionCsv
+import dev.suks.midas.ui.lock.AppLock
 import dev.suks.midas.ui.midasViewModel
+import androidx.fragment.app.FragmentActivity
 import dev.suks.midas.ui.stateOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,6 +80,8 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { c.settings.setTheme(mode) }
     fun setDynamic(on: Boolean) = viewModelScope.launch { c.settings.setDynamicColor(on) }
     fun setReminders(on: Boolean) = viewModelScope.launch { c.settings.setBillReminders(on) }
+    fun setAppLock(on: Boolean) = viewModelScope.launch { c.settings.setAppLock(on) }
+    fun showMessage(text: String) { _message.value = text }
     fun messageShown() { _message.value = null }
 
     fun export(uri: Uri, resolver: ContentResolver) = viewModelScope.launch {
@@ -120,6 +125,15 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit) {
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { vm.import(it, context.contentResolver) }
     }
+    val toggleLock: (Boolean) -> Unit = { on ->
+        val activity = context as? FragmentActivity
+        when {
+            activity == null -> {}
+            !AppLock.available(activity) -> vm.showMessage("Set up a screen lock on your phone first")
+            // Confirm it's really you both ways, so someone holding an unlocked phone can't switch it off.
+            else -> AppLock.prompt(activity, if (on) "Turn on app lock" else "Turn off app lock") { ok -> if (ok) vm.setAppLock(on) }
+        }
+    }
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> vm.setReminders(granted) }
 
     Scaffold(
@@ -151,6 +165,11 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit) {
                     else vm.setReminders(on)
                 })
             }) {}
+
+            Group("Privacy")
+            Row(Icons.Rounded.Fingerprint, "App lock", "Ask for fingerprint, face or screen lock when opening Midas", trailing = {
+                Switch(s.appLock, { on -> toggleLock(on) })
+            }) { toggleLock(!s.appLock) }
 
             Group("Data")
             Row(Icons.Rounded.FileDownload, "Export to CSV", "Every transaction, readable in any spreadsheet") { exportLauncher.launch("midas-${LocalDate.now()}.csv") }

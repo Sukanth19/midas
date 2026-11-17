@@ -21,6 +21,8 @@ data class Settings(
     /** Overall monthly spending budget in minor units; 0 = not set. */
     val monthlyBudgetMinor: Long = 0,
     val billReminders: Boolean = true,
+    /** Ask for fingerprint, face or the screen lock when opening the app. */
+    val appLock: Boolean = false,
 )
 
 /** One DataStore per file for the whole process (DataStore forbids two instances on one file). */
@@ -60,6 +62,7 @@ class SettingsRepository(
         val dynamic = booleanPreferencesKey("dynamic_color")
         val budget = longPreferencesKey("monthly_budget")
         val reminders = booleanPreferencesKey("bill_reminders")
+        val appLock = booleanPreferencesKey("app_lock")
     }
 
     val settings: Flow<Settings> = combine(global.data, workspace.data) { g, w ->
@@ -69,6 +72,7 @@ class SettingsRepository(
             dynamicColor = g[Keys.dynamic] ?: false,
             monthlyBudgetMinor = w[Keys.budget] ?: 0,
             billReminders = g[Keys.reminders] ?: true,
+            appLock = g[Keys.appLock] ?: false,
         )
     }
 
@@ -79,6 +83,7 @@ class SettingsRepository(
     suspend fun setDynamicColor(on: Boolean) = edit(global) { it[Keys.dynamic] = on }
     suspend fun setMonthlyBudget(minor: Long) = edit(workspace) { it[Keys.budget] = minor.coerceAtLeast(0) }
     suspend fun setBillReminders(on: Boolean) = edit(global) { it[Keys.reminders] = on }
+    suspend fun setAppLock(on: Boolean) = edit(global) { it[Keys.appLock] = on }
 
     private suspend fun edit(store: DataStore<Preferences>, block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         store.edit(block)

@@ -5,6 +5,7 @@ import dev.suks.midas.data.MidasDatabase
 import dev.suks.midas.data.Workspace
 import dev.suks.midas.data.WorkspaceRegistry
 import dev.suks.midas.reminders.BillReminderWorker
+import dev.suks.midas.ui.lock.AppLock
 import dev.suks.midas.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -16,6 +17,8 @@ import java.io.File
 class MidasApplication : Application() {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val appLock = AppLock()
 
     val workspaces: WorkspaceManager by lazy {
         WorkspaceManager(
