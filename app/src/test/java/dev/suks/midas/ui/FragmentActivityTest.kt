@@ -21,7 +21,7 @@ class FragmentActivityTest {
         val permission = activity.registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
         val picker = activity.registerForActivityResult(ActivityResultContracts.OpenDocument()) {}
         controller.start().resume()
-        permission.launch(Manifest.permission.RECEIVE_SMS)
+        permission.launch(Manifest.permission.CAMERA)
         picker.launch(arrayOf("*/*"))
     }
 }

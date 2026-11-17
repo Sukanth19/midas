@@ -38,14 +38,8 @@ import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.Savings
-import androidx.compose.material.icons.rounded.Sms
-import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
-import android.provider.Settings as SystemSettings
-import androidx.lifecycle.compose.LifecycleResumeEffect
-import dev.suks.midas.capture.PaymentNotificationListener
-import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -148,7 +142,6 @@ class SettingsViewModel(private val c: AppContainer, private val backups: Backup
     fun setDynamic(on: Boolean) = viewModelScope.launch { c.settings.setDynamicColor(on) }
     fun setReminders(on: Boolean) = viewModelScope.launch { c.settings.setBillReminders(on) }
     fun setAppLock(on: Boolean) = viewModelScope.launch { c.settings.setAppLock(on) }
-    fun setCaptureSms(on: Boolean) = viewModelScope.launch { c.settings.setCaptureSms(on) }
     fun showMessage(text: String) { _message.value = text }
     fun messageShown() { _message.value = null }
 
@@ -213,11 +206,6 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> 
             else -> AppLock.prompt(activity, if (on) "Turn on app lock" else "Turn off app lock") { ok -> if (ok) vm.setAppLock(on) }
         }
     }
-    val smsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
-        if (granted[Manifest.permission.RECEIVE_SMS] == true) vm.setCaptureSms(true)
-        else vm.showMessage("Midas needs permission to read incoming SMS for this")
-    }
-    val smsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> vm.setReminders(granted) }
 
     Scaffold(
@@ -250,38 +238,6 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> 
                     else vm.setReminders(on)
                 })
             }) {}
-
-            Group("Auto-capture")
-            val smsOn = s.captureSms && smsGranted
-            val setSms: (Boolean) -> Unit = { on ->
-                if (!on) vm.setCaptureSms(false)
-                else smsPermission.launch(
-                    // Also ask to post notifications on Android 13+, so new payments can say they're waiting.
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.POST_NOTIFICATIONS)
-                    else arrayOf(Manifest.permission.RECEIVE_SMS),
-                )
-            }
-            Row(Icons.Rounded.Sms, "Read bank SMS", "Payments from bank messages wait on Home for you to add. OTPs and personal texts are ignored.", trailing = {
-                Switch(smsOn, setSms, modifier = Modifier.testTag("capture_sms"))
-            }) { setSms(!smsOn) }
-            var listenerOn by remember { mutableStateOf(PaymentNotificationListener.hasAccess(context)) }
-            LifecycleResumeEffect(Unit) {
-                // Access is granted on a system screen, so check again on coming back.
-                listenerOn = PaymentNotificationListener.hasAccess(context)
-                onPauseOrDispose {}
-            }
-            Row(Icons.Rounded.NotificationsActive, "Read payment app alerts", "Google Pay, PhonePe, Paytm, BHIM, CRED and bank apps. Other apps' notifications are ignored.", trailing = {
-                Switch(listenerOn, { openListenerSettings(context) }, modifier = Modifier.testTag("capture_notifications"))
-            }) { openListenerSettings(context) }
-            Text(
-                "Captured payments go to your Personal workspace and never leave this phone. Works with rupee (INR) accounts.\n\n" +
-                    "If Android says it's a restricted setting (it does for apps installed from outside the Play Store), " +
-                    "open App info, tap ⋮ › Allow restricted settings, then try again.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-            )
-
-            TextButton(onClick = { openAppInfo(context) }, modifier = Modifier.padding(start = 12.dp)) { Text("Open App info") }
 
             Group("Privacy")
             Row(Icons.Rounded.Fingerprint, "App lock", "Ask for fingerprint, face or screen lock when opening Midas", trailing = {
@@ -381,20 +337,6 @@ private fun <T> ChoiceDialog(title: String, options: List<T>, selected: T, label
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
-}
-
-/** Notification access is granted on a system screen; on Android 11+ it can open straight at Midas. */
-private fun openListenerSettings(context: Context) {
-    val direct = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        Intent(SystemSettings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
-            .putExtra(SystemSettings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, PaymentNotificationListener.component(context).flattenToString())
-    } else null
-    val fallback = Intent(SystemSettings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-    runCatching { context.startActivity(direct ?: fallback) }.onFailure { runCatching { context.startActivity(fallback) } }
-}
-
-private fun openAppInfo(context: Context) {
-    runCatching { context.startActivity(Intent(SystemSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))) }
 }
 
 private const val FOLDER_ACCESS = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION

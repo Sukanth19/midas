@@ -23,8 +23,6 @@ data class Settings(
     val billReminders: Boolean = true,
     /** Ask for fingerprint, face or the screen lock when opening the app. */
     val appLock: Boolean = false,
-    /** Read bank SMS for payments to review. */
-    val captureSms: Boolean = false,
     /** What to call you in settle-up messages. */
     val myName: String = "Me",
     /** Folder (a document tree URI) that gets a backup every day; null = off. */
@@ -70,7 +68,6 @@ class SettingsRepository(
         val budget = longPreferencesKey("monthly_budget")
         val reminders = booleanPreferencesKey("bill_reminders")
         val appLock = booleanPreferencesKey("app_lock")
-        val captureSms = booleanPreferencesKey("capture_sms")
         val myName = stringPreferencesKey("my_name")
         val backupFolder = stringPreferencesKey("backup_folder")
         val lastAutoBackup = longPreferencesKey("last_auto_backup")
@@ -84,7 +81,6 @@ class SettingsRepository(
             monthlyBudgetMinor = w[Keys.budget] ?: 0,
             billReminders = g[Keys.reminders] ?: true,
             appLock = g[Keys.appLock] ?: false,
-            captureSms = g[Keys.captureSms] ?: false,
             myName = g[Keys.myName] ?: "Me",
             backupFolder = g[Keys.backupFolder],
             lastAutoBackup = g[Keys.lastAutoBackup] ?: 0,
@@ -99,7 +95,6 @@ class SettingsRepository(
     suspend fun setMonthlyBudget(minor: Long) = edit(workspace) { it[Keys.budget] = minor.coerceAtLeast(0) }
     suspend fun setBillReminders(on: Boolean) = edit(global) { it[Keys.reminders] = on }
     suspend fun setAppLock(on: Boolean) = edit(global) { it[Keys.appLock] = on }
-    suspend fun setCaptureSms(on: Boolean) = edit(global) { it[Keys.captureSms] = on }
     suspend fun setBackupFolder(uri: String?) = edit(global) { if (uri == null) it.remove(Keys.backupFolder) else it[Keys.backupFolder] = uri }
     suspend fun setLastAutoBackup(at: Long) = edit(global) { it[Keys.lastAutoBackup] = at }
     suspend fun setMyName(name: String) = edit(global) { it[Keys.myName] = Workspace.cleanName(name) ?: "Me" }
