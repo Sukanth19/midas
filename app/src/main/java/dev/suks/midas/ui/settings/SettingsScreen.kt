@@ -252,16 +252,18 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit, onSplit: () -> 
             }) {}
 
             Group("Auto-capture")
+            val smsOn = s.captureSms && smsGranted
+            val setSms: (Boolean) -> Unit = { on ->
+                if (!on) vm.setCaptureSms(false)
+                else smsPermission.launch(
+                    // Also ask to post notifications on Android 13+, so new payments can say they're waiting.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.POST_NOTIFICATIONS)
+                    else arrayOf(Manifest.permission.RECEIVE_SMS),
+                )
+            }
             Row(Icons.Rounded.Sms, "Read bank SMS", "Payments from bank messages wait on Home for you to add. OTPs and personal texts are ignored.", trailing = {
-                Switch(s.captureSms && smsGranted, { on ->
-                    if (!on) vm.setCaptureSms(false)
-                    else smsPermission.launch(
-                        // Also ask to post notifications on Android 13+, so new payments can say they're waiting.
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.POST_NOTIFICATIONS)
-                        else arrayOf(Manifest.permission.RECEIVE_SMS),
-                    )
-                }, modifier = Modifier.testTag("capture_sms"))
-            }) {}
+                Switch(smsOn, setSms, modifier = Modifier.testTag("capture_sms"))
+            }) { setSms(!smsOn) }
             var listenerOn by remember { mutableStateOf(PaymentNotificationListener.hasAccess(context)) }
             LifecycleResumeEffect(Unit) {
                 // Access is granted on a system screen, so check again on coming back.
