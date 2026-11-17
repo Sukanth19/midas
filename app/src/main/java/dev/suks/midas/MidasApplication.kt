@@ -1,6 +1,7 @@
 package dev.suks.midas
 
 import android.app.Application
+import dev.suks.midas.capture.PaymentCapture
 import dev.suks.midas.data.MidasDatabase
 import dev.suks.midas.data.Workspace
 import dev.suks.midas.data.WorkspaceRegistry
@@ -45,6 +46,7 @@ class MidasApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         BillReminderWorker.createChannel(this)
+        PaymentCapture.createChannel(this)
         BillReminderWorker.schedule(this)
         // Publish generated widget previews (Android 15+) so the picker shows the real design.
         appScope.launch { WidgetUpdater.publishPreviews(this@MidasApplication) }

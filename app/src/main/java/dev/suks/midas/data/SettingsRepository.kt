@@ -23,6 +23,8 @@ data class Settings(
     val billReminders: Boolean = true,
     /** Ask for fingerprint, face or the screen lock when opening the app. */
     val appLock: Boolean = false,
+    /** Read bank SMS for payments to review. */
+    val captureSms: Boolean = false,
 )
 
 /** One DataStore per file for the whole process (DataStore forbids two instances on one file). */
@@ -63,6 +65,7 @@ class SettingsRepository(
         val budget = longPreferencesKey("monthly_budget")
         val reminders = booleanPreferencesKey("bill_reminders")
         val appLock = booleanPreferencesKey("app_lock")
+        val captureSms = booleanPreferencesKey("capture_sms")
     }
 
     val settings: Flow<Settings> = combine(global.data, workspace.data) { g, w ->
@@ -73,6 +76,7 @@ class SettingsRepository(
             monthlyBudgetMinor = w[Keys.budget] ?: 0,
             billReminders = g[Keys.reminders] ?: true,
             appLock = g[Keys.appLock] ?: false,
+            captureSms = g[Keys.captureSms] ?: false,
         )
     }
 
@@ -84,6 +88,7 @@ class SettingsRepository(
     suspend fun setMonthlyBudget(minor: Long) = edit(workspace) { it[Keys.budget] = minor.coerceAtLeast(0) }
     suspend fun setBillReminders(on: Boolean) = edit(global) { it[Keys.reminders] = on }
     suspend fun setAppLock(on: Boolean) = edit(global) { it[Keys.appLock] = on }
+    suspend fun setCaptureSms(on: Boolean) = edit(global) { it[Keys.captureSms] = on }
 
     private suspend fun edit(store: DataStore<Preferences>, block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         store.edit(block)

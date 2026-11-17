@@ -24,6 +24,10 @@ import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.Savings
+import androidx.compose.material.icons.rounded.Sms
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -81,6 +85,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun setDynamic(on: Boolean) = viewModelScope.launch { c.settings.setDynamicColor(on) }
     fun setReminders(on: Boolean) = viewModelScope.launch { c.settings.setBillReminders(on) }
     fun setAppLock(on: Boolean) = viewModelScope.launch { c.settings.setAppLock(on) }
+    fun setCaptureSms(on: Boolean) = viewModelScope.launch { c.settings.setCaptureSms(on) }
     fun showMessage(text: String) { _message.value = text }
     fun messageShown() { _message.value = null }
 
@@ -134,6 +139,11 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit) {
             else -> AppLock.prompt(activity, if (on) "Turn on app lock" else "Turn off app lock") { ok -> if (ok) vm.setAppLock(on) }
         }
     }
+    val smsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        if (granted[Manifest.permission.RECEIVE_SMS] == true) vm.setCaptureSms(true)
+        else vm.showMessage("Midas needs permission to read incoming SMS for this")
+    }
+    val smsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> vm.setReminders(granted) }
 
     Scaffold(
@@ -165,6 +175,23 @@ fun SettingsScreen(onBack: () -> Unit, onCategories: () -> Unit) {
                     else vm.setReminders(on)
                 })
             }) {}
+
+            Group("Auto-capture")
+            Row(Icons.Rounded.Sms, "Read bank SMS", "Payments from bank messages wait on Home for you to add. OTPs and personal texts are ignored.", trailing = {
+                Switch(s.captureSms && smsGranted, { on ->
+                    if (!on) vm.setCaptureSms(false)
+                    else smsPermission.launch(
+                        // Also ask to post notifications on Android 13+, so new payments can say they're waiting.
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.POST_NOTIFICATIONS)
+                        else arrayOf(Manifest.permission.RECEIVE_SMS),
+                    )
+                }, modifier = Modifier.testTag("capture_sms"))
+            }) {}
+            Text(
+                "Captured payments go to your Personal workspace and never leave this phone. Works with rupee (INR) accounts.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+            )
 
             Group("Privacy")
             Row(Icons.Rounded.Fingerprint, "App lock", "Ask for fingerprint, face or screen lock when opening Midas", trailing = {

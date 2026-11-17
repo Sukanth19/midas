@@ -94,6 +94,7 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit) {
             MainActivity.ACTION_ADD_EXPENSE -> nav.navigate(EditTransactionRoute())
             MainActivity.ACTION_OPEN_GROCERIES -> nav.switchTab(ListsRoute(tab = 1))
             MainActivity.ACTION_OPEN_BILLS -> nav.switchTab(BillsRoute)
+            MainActivity.ACTION_OPEN_HOME -> nav.switchTab(HomeRoute)
             else -> return@LaunchedEffect
         }
         onActionHandled()
