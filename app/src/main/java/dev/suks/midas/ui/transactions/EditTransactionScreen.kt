@@ -55,6 +55,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import dev.suks.midas.AppContainer
 import dev.suks.midas.data.Category
+import dev.suks.midas.data.Person
+import androidx.compose.material3.Switch
 import dev.suks.midas.data.Transaction
 import dev.suks.midas.domain.Money
 import dev.suks.midas.domain.PaymentMethod
@@ -93,7 +95,18 @@ data class EditTxState(
     val fromCapture: String? = null,
     /** Opened from text shared by another app. */
     val fromShare: Boolean = false,
+    /** People this workspace is shared with; empty for a personal one. */
+    val people: List<Person> = emptyList(),
+    /** Who paid; null = you. */
+    val paidById: Long? = null,
+    /** Split evenly between you and everyone in [people]. */
+    val shared: Boolean = false,
 ) {
+    val canSplit: Boolean get() = people.isNotEmpty() && type == TxType.EXPENSE
+
+    /** Each person's share when split, or null. */
+    val shareMinor: Long? get() = amountMinor?.takeIf { canSplit && shared }?.let { it / (people.size + 1) }
+
     val amountMinor: Long? get() = Money.parse(amountText, currency)?.takeIf { it > 0 }
     val visibleCategories: List<Category> get() = categories.filter { it.type == type }
     val canSave: Boolean get() = amountMinor != null && categoryId != null
@@ -113,16 +126,21 @@ class EditTransactionViewModel(
         viewModelScope.launch {
             val settings = c.settings.current()
             val cats = c.categories.categories.first()
+            val people = c.split.getPeople()
             val tx = if (id != 0L) c.transactions.get(id) else null
             val capture = if (tx == null && captureId != 0L) c.captures.get(captureId) else null
             val guessedCategory = capture?.merchant?.let { c.transactions.lastCategoryFor(it, capture.type) }
             original = tx
             _state.update { s ->
-                val base = s.copy(loading = false, currency = settings.currency, today = c.today(), date = c.today(), categories = cats)
+                val base = s.copy(
+                    loading = false, currency = settings.currency, today = c.today(), date = c.today(), categories = cats,
+                    people = people, shared = people.isNotEmpty(),
+                )
                 when {
                     tx != null -> base.copy(
                         isNew = false, type = tx.type, amountText = Money.toInput(tx.amountMinor, settings.currency), title = tx.title,
                         note = tx.note, categoryId = tx.categoryId, date = tx.date, paymentMethod = tx.paymentMethod,
+                        shared = tx.shared, paidById = tx.paidById,
                     )
                     capture != null -> base.copy(
                         type = capture.type, amountText = Money.toInput(capture.amountMinor, settings.currency),
@@ -158,6 +176,8 @@ class EditTransactionViewModel(
     fun setCategory(id: Long) = _state.update { it.copy(categoryId = id) }
     fun setDate(d: LocalDate) = _state.update { it.copy(date = d) }
     fun setPayment(p: PaymentMethod) = _state.update { it.copy(paymentMethod = p) }
+    fun setPaidBy(id: Long?) = _state.update { it.copy(paidById = id) }
+    fun setShared(on: Boolean) = _state.update { it.copy(shared = on) }
 
     fun save() {
         val s = _state.value
@@ -173,6 +193,7 @@ class EditTransactionViewModel(
                 base.copy(
                     amountMinor = amount, type = s.type, categoryId = s.categoryId, title = s.title.trim().ifBlank { catName },
                     note = s.note.trim(), date = s.date, paymentMethod = s.paymentMethod,
+                    shared = s.canSplit && s.shared, paidById = s.paidById.takeIf { s.canSplit },
                 ),
             )
             if (captureId != 0L && original == null) c.captures.markAdded(captureId, txId)
@@ -194,6 +215,7 @@ fun EditTransactionScreen(id: Long, startAsIncome: Boolean, onDone: () -> Unit, 
     EditTransactionContent(
         state, onClose = onDone, onType = vm::setType, onAmount = vm::setAmount, onTitle = vm::setTitle, onNote = vm::setNote,
         onCategory = vm::setCategory, onDate = vm::setDate, onPayment = vm::setPayment, onSave = vm::save, onDelete = vm::delete,
+        onPaidBy = vm::setPaidBy, onShared = vm::setShared,
     )
 }
 
@@ -211,6 +233,8 @@ fun EditTransactionContent(
     onPayment: (PaymentMethod) -> Unit = {},
     onSave: () -> Unit = {},
     onDelete: () -> Unit = {},
+    onPaidBy: (Long?) -> Unit = {},
+    onShared: (Boolean) -> Unit = {},
 ) {
     var confirmDelete by remember { mutableStateOf(false) }
     val amountFocus = remember { FocusRequester() }
@@ -321,6 +345,24 @@ fun EditTransactionContent(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PaymentMethod.entries.forEach { p ->
                     FilterChip(state.paymentMethod == p, { onPayment(p) }, { Text(p.label) })
+                }
+            }
+
+            if (state.canSplit) {
+                Text("Paid by", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(state.paidById == null, { onPaidBy(null) }, { Text("You") })
+                    state.people.forEach { p -> FilterChip(state.paidById == p.id, { onPaidBy(p.id) }, { Text(p.name) }, Modifier.testTag("paid_by_${p.name}")) }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Split evenly with everyone", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            state.shareMinor?.let { "${Money.format(it, state.currency)} each for ${state.people.size + 1} people" } ?: "Only counts for whoever paid",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(state.shared, onShared, modifier = Modifier.testTag("split_switch"))
                 }
             }
 
