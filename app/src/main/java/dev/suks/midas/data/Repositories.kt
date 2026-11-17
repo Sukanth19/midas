@@ -115,9 +115,27 @@ class GroceryRepository(private val db: MidasDatabase, private val onChanged: Ch
     private val dao = db.grocery()
     val items: Flow<List<GroceryItem>> = dao.observeItems()
     val weeks: Flow<List<GroceryWeek>> = dao.observeWeeks()
+    val prices: Flow<List<GroceryPrice>> = dao.observePrices()
 
     suspend fun getItems() = dao.getItems()
-    suspend fun save(item: GroceryItem): Long = dao.upsert(item).let { if (item.id != 0L) item.id else it }.also { onChanged() }
+
+    /** Saves the item and, if its price changed, adds the new price to its history. */
+    suspend fun save(item: GroceryItem, today: LocalDate = LocalDate.now()): Long {
+        val id = db.withTransaction {
+            recordPrice(item, today)
+            dao.upsert(item).let { if (item.id != 0L) item.id else it }
+        }
+        onChanged()
+        return id
+    }
+
+    private suspend fun recordPrice(item: GroceryItem, on: LocalDate) {
+        if (item.unitPriceMinor <= 0 || item.name.isBlank()) return
+        val key = GroceryMath.priceKey(item.name)
+        val last = dao.latestPrice(key)
+        if (last != null && last.unit == item.unit && last.unitPriceMinor == item.unitPriceMinor) return
+        dao.insertPrice(GroceryPrice(name = key, unit = item.unit, unitPriceMinor = item.unitPriceMinor, date = on))
+    }
     suspend fun delete(id: Long) { dao.delete(id); onChanged() }
     suspend fun setChecked(id: Long, checked: Boolean) { dao.setChecked(id, checked); onChanged() }
     suspend fun toggle(id: Long) { dao.get(id)?.let { dao.setChecked(id, !it.checked) }; onChanged() }
@@ -136,6 +154,8 @@ class GroceryRepository(private val db: MidasDatabase, private val onChanged: Ch
     suspend fun finishWeek(today: LocalDate, actualSpentMinor: Long?, groceriesCategoryId: Long?): GroceryWeek {
         val week = db.withTransaction {
             val items = dao.getItems()
+            // Items priced before price history existed get their first point here.
+            items.filter { it.checked }.forEach { recordPrice(it, today) }
             val totals = GroceryMath.totals(items.map { it.toLine() })
             val actual = actualSpentMinor ?: totals.inCartMinor
             val txId = if (actual > 0 && actualSpentMinor != null) {

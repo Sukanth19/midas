@@ -49,4 +49,14 @@ class GroceryMathTest {
         assertEquals(50.0, GroceryMath.stepFor("g"), 0.0)
         assertEquals(1.0, GroceryMath.stepFor("pcs"), 0.0)
     }
+
+    @Test fun `price trend compares with the previous and first price`() {
+        val d = java.time.LocalDate.of(2026, 11, 1)
+        val t = PriceTrend(listOf(PricePoint(d, 5_000), PricePoint(d.plusDays(7), 5_600), PricePoint(d.plusDays(14), 6_160)))
+        assertEquals(6_160L, t.latestMinor)
+        assertEquals(0.1f, t.lastChange!!, 0.0001f)
+        assertEquals(0.232f, t.overallChange!!, 0.0001f)
+        assertEquals(null, PriceTrend(listOf(PricePoint(d, 5_000))).lastChange)
+        assertEquals("milk powder", GroceryMath.priceKey("  Milk   Powder "))
+    }
 }

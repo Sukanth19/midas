@@ -16,6 +16,7 @@ import androidx.compose.ui.test.hasScrollAction
 import dev.suks.midas.data.Bill
 import dev.suks.midas.data.Category
 import dev.suks.midas.data.GroceryItem
+import dev.suks.midas.data.GroceryPrice
 import dev.suks.midas.data.Settings
 import dev.suks.midas.data.Transaction
 import dev.suks.midas.data.Workspace
@@ -130,6 +131,21 @@ class ScreensTest {
         compose.onNodeWithTag("check_Milk").performClick()
         assertEquals(listOf(1L to true), toggled)
         compose.onNodeWithText("Finish week").assertIsDisplayed()
+    }
+
+    @Test fun `grocery list flags price changes and the sheet shows history`() {
+        val milk = GroceryItem(1, "Milk", 2.0, "l", 6_160, "Dairy & Eggs")
+        val prices = listOf(5_600L, 6_160L).mapIndexed { i, p -> GroceryPrice(i + 1L, "milk", "l", p, today.minusDays(14L - 7 * i)) }
+        val state = GroceryState(
+            today = today, sections = listOf("Dairy & Eggs" to listOf(milk)),
+            totals = GroceryMath.totals(listOf(milk.toLine())), prices = mapOf("milk" to prices), loaded = true,
+        )
+        compose.setContent { MidasTheme { GroceryContent(state) } }
+        compose.onNodeWithTag("price_change_Milk", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("▲ 10%", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Milk", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("price_history").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("₹56/l").assertIsDisplayed()
     }
 
     @Test fun `bills screen groups by urgency`() {

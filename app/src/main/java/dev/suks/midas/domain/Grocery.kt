@@ -2,6 +2,7 @@ package dev.suks.midas.domain
 
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.LocalDate
 
 /** Minimal shape the grocery maths needs; the Room entity maps onto it. */
 data class GroceryLine(val quantity: Double, val unitPriceMinor: Long, val checked: Boolean)
@@ -16,7 +17,27 @@ data class GroceryTotals(
     val progress: Float get() = if (itemCount == 0) 0f else checkedCount.toFloat() / itemCount
 }
 
+data class PricePoint(val date: LocalDate, val unitPriceMinor: Long)
+
+/** How an item's price has moved; [points] are oldest first. */
+data class PriceTrend(val points: List<PricePoint>) {
+    val latestMinor: Long? get() = points.lastOrNull()?.unitPriceMinor
+    val previousMinor: Long? get() = points.getOrNull(points.size - 2)?.unitPriceMinor
+
+    /** Change since the price before the latest one, e.g. 0.1 for +10%. Null without two prices. */
+    val lastChange: Float? get() = change(previousMinor, latestMinor)
+
+    /** Change since the first price on record. */
+    val overallChange: Float? get() = if (points.size < 2) null else change(points.first().unitPriceMinor, latestMinor)
+
+    private fun change(from: Long?, to: Long?): Float? =
+        if (from == null || to == null || from <= 0) null else (to - from).toFloat() / from
+}
+
 object GroceryMath {
+
+    /** Price histories are matched on the name, ignoring case and stray spaces. */
+    fun priceKey(name: String): String = name.trim().replace(Regex("\\s+"), " ").lowercase()
 
     /** quantity × unit price, rounded half-up to the minor unit (1.5 kg × ₹33.33 = ₹50.00). */
     fun lineTotal(quantity: Double, unitPriceMinor: Long): Long {

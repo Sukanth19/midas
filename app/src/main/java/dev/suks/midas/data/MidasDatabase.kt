@@ -1,6 +1,7 @@
 package dev.suks.midas.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -16,9 +17,13 @@ class Converters {
 }
 
 @Database(
-    entities = [Category::class, Transaction::class, BuyItem::class, GroceryItem::class, GroceryWeek::class, Bill::class],
-    version = 1,
+    entities = [
+        Category::class, Transaction::class, BuyItem::class, GroceryItem::class, GroceryWeek::class, Bill::class,
+        GroceryPrice::class,
+    ],
+    version = 2,
     exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
 )
 @TypeConverters(Converters::class)
 abstract class MidasDatabase : RoomDatabase() {

@@ -201,4 +201,16 @@ class RepositoryTest {
         cats.setBudget(id, -5)
         assertEquals(0L, db.categories().get(id)!!.monthlyBudgetMinor)
     }
+
+    @Test fun `grocery prices are kept only when they change`() = runTest {
+        val id = grocery.save(GroceryItem(name = "Milk", unit = "l", unitPriceMinor = 5_600), today)
+        val item = db.grocery().get(id)!!
+        grocery.save(item.copy(quantity = 3.0), today.plusDays(1))
+        grocery.save(item.copy(name = "milk ", unitPriceMinor = 6_200), today.plusDays(7))
+        grocery.save(GroceryItem(name = "Bread", unitPriceMinor = 0), today)
+        val prices = grocery.prices.first()
+        assertEquals(listOf(5_600L, 6_200L), prices.map { it.unitPriceMinor })
+        assertTrue(prices.all { it.name == "milk" })
+        assertEquals(today.plusDays(7), prices.last().date)
+    }
 }

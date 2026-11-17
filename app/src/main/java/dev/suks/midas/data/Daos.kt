@@ -109,6 +109,14 @@ interface GroceryDao {
     fun observeWeeks(): Flow<List<GroceryWeek>>
 
     @Insert suspend fun insertWeek(week: GroceryWeek): Long
+
+    @Query("SELECT * FROM grocery_prices ORDER BY date, id")
+    fun observePrices(): Flow<List<GroceryPrice>>
+
+    @Query("SELECT * FROM grocery_prices WHERE name = :name ORDER BY date DESC, id DESC LIMIT 1")
+    suspend fun latestPrice(name: String): GroceryPrice?
+
+    @Insert suspend fun insertPrice(price: GroceryPrice): Long
 }
 
 @Dao

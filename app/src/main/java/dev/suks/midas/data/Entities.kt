@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 import dev.suks.midas.domain.Frequency
 import dev.suks.midas.domain.GroceryLine
 import dev.suks.midas.domain.PaymentMethod
+import dev.suks.midas.domain.PricePoint
 import dev.suks.midas.domain.Priority
 import dev.suks.midas.domain.Recurrence
 import dev.suks.midas.domain.TxPoint
@@ -92,6 +93,19 @@ data class GroceryWeek(
     val itemCount: Int,
     val transactionId: Long? = null,
 )
+
+/** A grocery item's price per unit as it was on [date]; a new row is kept each time it changes. */
+@Entity(tableName = "grocery_prices", indices = [Index("name")])
+data class GroceryPrice(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** [GroceryMath.priceKey] of the item name, so "Milk" and "milk " share one history. */
+    val name: String,
+    val unit: String,
+    val unitPriceMinor: Long,
+    val date: LocalDate,
+) {
+    fun toPoint() = PricePoint(date, unitPriceMinor)
+}
 
 @Entity(tableName = "bills", indices = [Index("nextDue")])
 data class Bill(
