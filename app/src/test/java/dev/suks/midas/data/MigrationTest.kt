@@ -55,7 +55,10 @@ class MigrationTest {
         }
         val room = MidasDatabase.build(context, name = name)
         try {
-            assertEquals("Lunch", room.transactions().getAll().single().title)
+            val lunch = room.transactions().getAll().single()
+            assertEquals("Lunch", lunch.title)
+            assertEquals(false, lunch.shared)
+            assertEquals(null, lunch.paidById)
             assertEquals("Rent", room.bills().getActive().single().name)
             assertEquals("", room.bills().getActive().single().upiId)
             val grocery = GroceryRepository(room) {}

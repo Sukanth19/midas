@@ -236,4 +236,25 @@ class RepositoryTest {
         assertTrue(captures.pending.first().isEmpty())
         assertEquals(catId("Food & Dining"), tx.lastCategoryFor("swiggy ", TxType.EXPENSE))
     }
+
+    @Test fun `people, shared expenses and settle-ups`() = runTest {
+        val split = SplitRepository(db, onChanged)
+        val rahul = split.addPerson("  Rahul ")!!
+        val priya = split.addPerson("Priya")!!
+        assertNull(split.addPerson("   "))
+        assertEquals(listOf("Rahul", "Priya"), split.getPeople().map { it.name })
+
+        tx.save(Transaction(amountMinor = 90_000, type = TxType.EXPENSE, categoryId = null, title = "Groceries", date = today, shared = true))
+        tx.save(Transaction(amountMinor = 30_000, type = TxType.EXPENSE, categoryId = null, title = "Gas", date = today, shared = true, paidById = rahul))
+        tx.save(Transaction(amountMinor = 5_000, type = TxType.EXPENSE, categoryId = null, title = "My lunch", date = today))
+        assertEquals(listOf(90_000L, 30_000L).sorted(), split.sharedExpenses.first().map { it.amountMinor }.sorted())
+
+        split.settle(priya, null, 20_000, today)
+        assertEquals(1, split.settlements.first().size)
+        // Rahul paid for something, so he can't be removed; Priya is in a settle-up.
+        assertFalse(split.removePerson(rahul))
+        assertFalse(split.removePerson(priya))
+        val sam = split.addPerson("Sam")!!
+        assertTrue(split.removePerson(sam))
+    }
 }

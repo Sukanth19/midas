@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 import dev.suks.midas.domain.CaptureStatus
 import dev.suks.midas.domain.Frequency
 import dev.suks.midas.domain.GroceryLine
+import dev.suks.midas.domain.Payment
 import dev.suks.midas.domain.PaymentMethod
 import dev.suks.midas.domain.PricePoint
 import dev.suks.midas.domain.Priority
@@ -47,8 +48,33 @@ data class Transaction(
     val source: TxSource = TxSource.MANUAL,
     val billId: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
+    /** In a workspace shared with people: who paid. Null means you did. */
+    val paidById: Long? = null,
+    /** Split evenly between you and everyone in the workspace. */
+    @ColumnInfo(defaultValue = "0") val shared: Boolean = false,
 ) {
     fun toPoint() = TxPoint(date, amountMinor, type, categoryId)
+}
+
+/** Someone you share a workspace's costs with: a roommate, a friend on a trip. */
+@Entity(tableName = "people")
+data class Person(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val createdAt: Long = System.currentTimeMillis(),
+)
+
+/** Money handed over to square up. A null id means you. */
+@Entity(tableName = "settlements")
+data class Settlement(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val fromId: Long?,
+    val toId: Long?,
+    val amountMinor: Long,
+    val date: LocalDate,
+    val createdAt: Long = System.currentTimeMillis(),
+) {
+    fun toPayment() = Payment(fromId, toId, amountMinor)
 }
 
 @Entity(tableName = "buy_items", indices = [Index("purchased")])

@@ -25,6 +25,8 @@ data class Settings(
     val appLock: Boolean = false,
     /** Read bank SMS for payments to review. */
     val captureSms: Boolean = false,
+    /** What to call you in settle-up messages. */
+    val myName: String = "Me",
 )
 
 /** One DataStore per file for the whole process (DataStore forbids two instances on one file). */
@@ -66,6 +68,7 @@ class SettingsRepository(
         val reminders = booleanPreferencesKey("bill_reminders")
         val appLock = booleanPreferencesKey("app_lock")
         val captureSms = booleanPreferencesKey("capture_sms")
+        val myName = stringPreferencesKey("my_name")
     }
 
     val settings: Flow<Settings> = combine(global.data, workspace.data) { g, w ->
@@ -77,6 +80,7 @@ class SettingsRepository(
             billReminders = g[Keys.reminders] ?: true,
             appLock = g[Keys.appLock] ?: false,
             captureSms = g[Keys.captureSms] ?: false,
+            myName = g[Keys.myName] ?: "Me",
         )
     }
 
@@ -89,6 +93,7 @@ class SettingsRepository(
     suspend fun setBillReminders(on: Boolean) = edit(global) { it[Keys.reminders] = on }
     suspend fun setAppLock(on: Boolean) = edit(global) { it[Keys.appLock] = on }
     suspend fun setCaptureSms(on: Boolean) = edit(global) { it[Keys.captureSms] = on }
+    suspend fun setMyName(name: String) = edit(global) { it[Keys.myName] = Workspace.cleanName(name) ?: "Me" }
 
     private suspend fun edit(store: DataStore<Preferences>, block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         store.edit(block)

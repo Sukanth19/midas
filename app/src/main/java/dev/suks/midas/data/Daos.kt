@@ -165,3 +165,33 @@ interface CaptureDao {
     @Query("DELETE FROM captured_payments WHERE status != 'PENDING' AND receivedAt < :before")
     suspend fun pruneHandled(before: Long)
 }
+
+@Dao
+interface SplitDao {
+    @Query("SELECT * FROM people ORDER BY createdAt, id")
+    fun observePeople(): Flow<List<Person>>
+
+    @Query("SELECT * FROM people ORDER BY createdAt, id")
+    suspend fun getPeople(): List<Person>
+
+    @Insert suspend fun insertPerson(p: Person): Long
+    @Update suspend fun updatePerson(p: Person)
+
+    @Query("DELETE FROM people WHERE id = :id")
+    suspend fun deletePerson(id: Long)
+
+    /** How many expenses or settle-ups mention this person. */
+    @Query("SELECT (SELECT COUNT(*) FROM transactions WHERE paidById = :id) + (SELECT COUNT(*) FROM settlements WHERE fromId = :id OR toId = :id)")
+    suspend fun usesOf(id: Long): Int
+
+    @Query("SELECT * FROM transactions WHERE shared = 1 AND type = 'EXPENSE' ORDER BY date DESC, createdAt DESC")
+    fun observeShared(): Flow<List<Transaction>>
+
+    @Query("SELECT * FROM settlements ORDER BY date DESC, createdAt DESC")
+    fun observeSettlements(): Flow<List<Settlement>>
+
+    @Insert suspend fun insertSettlement(s: Settlement): Long
+
+    @Query("DELETE FROM settlements WHERE id = :id")
+    suspend fun deleteSettlement(id: Long)
+}

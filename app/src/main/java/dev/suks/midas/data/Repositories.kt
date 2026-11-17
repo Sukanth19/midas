@@ -269,3 +269,41 @@ class CaptureRepository(private val db: MidasDatabase, private val onChanged: Ch
         const val KEEP_HANDLED_MS = 60L * 24 * 60 * 60 * 1000
     }
 }
+
+/** People in a shared workspace, who paid for what, and settle-ups. */
+class SplitRepository(private val db: MidasDatabase, private val onChanged: ChangeListener) {
+    private val dao = db.split()
+    val people: Flow<List<Person>> = dao.observePeople()
+    val sharedExpenses: Flow<List<Transaction>> = dao.observeShared()
+    val settlements: Flow<List<Settlement>> = dao.observeSettlements()
+
+    suspend fun getPeople() = dao.getPeople()
+
+    suspend fun addPerson(name: String): Long? {
+        val clean = Workspace.cleanName(name) ?: return null
+        return dao.insertPerson(Person(name = clean)).also { onChanged() }
+    }
+
+    suspend fun rename(person: Person, name: String) {
+        val clean = Workspace.cleanName(name) ?: return
+        dao.updatePerson(person.copy(name = clean))
+        onChanged()
+    }
+
+    /** Removes someone who isn't in any expense or settle-up yet. Returns false if they are. */
+    suspend fun removePerson(id: Long): Boolean {
+        val removed = db.withTransaction {
+            if (dao.usesOf(id) > 0) false else { dao.deletePerson(id); true }
+        }
+        if (removed) onChanged()
+        return removed
+    }
+
+    suspend fun settle(fromId: Long?, toId: Long?, amountMinor: Long, on: LocalDate): Long {
+        require(amountMinor > 0) { "amount must be positive" }
+        require(fromId != toId) { "can't settle with yourself" }
+        return dao.insertSettlement(Settlement(fromId = fromId, toId = toId, amountMinor = amountMinor, date = on)).also { onChanged() }
+    }
+
+    suspend fun deleteSettlement(id: Long) { dao.deleteSettlement(id); onChanged() }
+}

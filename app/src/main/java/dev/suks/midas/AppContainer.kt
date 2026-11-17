@@ -9,6 +9,7 @@ import dev.suks.midas.data.ChangeListener
 import dev.suks.midas.data.GroceryRepository
 import dev.suks.midas.data.MidasDatabase
 import dev.suks.midas.data.SettingsRepository
+import dev.suks.midas.data.SplitRepository
 import dev.suks.midas.data.TransactionRepository
 import dev.suks.midas.data.Workspace
 import java.time.Clock
@@ -32,6 +33,7 @@ class AppContainer(
     val grocery = GroceryRepository(database, onChanged)
     val bills = BillRepository(database, onChanged)
     val captures = CaptureRepository(database, onChanged)
+    val split = SplitRepository(database, onChanged)
 
     fun today(): LocalDate = LocalDate.now(clock)
 
