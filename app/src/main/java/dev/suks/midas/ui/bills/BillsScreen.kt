@@ -60,7 +60,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import android.provider.CalendarContract
 import java.time.ZoneOffset
 import android.widget.Toast
@@ -169,7 +169,7 @@ fun BillsScreen() {
             }
         },
         onPayUpi = { bill, amount ->
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(Upi.payUri(bill.upiId, bill.name, amount, bill.name)))
+            val intent = Intent(Intent.ACTION_VIEW, Upi.payUri(bill.upiId, bill.name, amount, bill.name).toUri())
             try {
                 upiPayment = bill.id to amount
                 upiLauncher.launch(Intent.createChooser(intent, "Pay ${bill.name} with"))
