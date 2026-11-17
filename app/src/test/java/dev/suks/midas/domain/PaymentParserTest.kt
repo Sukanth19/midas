@@ -78,4 +78,13 @@ class PaymentParserTest {
         assertEquals("McDonald's", PaymentParser.prettyName("McDonald's"))
         assertEquals("9876543210@ybl", PaymentParser.prettyName("9876543210@ybl"))
     }
+
+    @Test fun `lenient mode for shared text`() {
+        assertNull(p("Payment successful ₹450 to Swiggy"))
+        val shared = PaymentParser.parse("Payment successful ₹450 to Swiggy", lenient = true)!!
+        assertEquals(45_000L, shared.amountMinor)
+        assertEquals(TxType.EXPENSE, shared.type)
+        assertEquals("Swiggy", shared.merchant)
+        assertNull(PaymentParser.parse("no amount here", lenient = true))
+    }
 }

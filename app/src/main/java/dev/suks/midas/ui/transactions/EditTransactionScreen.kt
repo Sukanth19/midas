@@ -58,6 +58,7 @@ import dev.suks.midas.data.Category
 import dev.suks.midas.data.Transaction
 import dev.suks.midas.domain.Money
 import dev.suks.midas.domain.PaymentMethod
+import dev.suks.midas.domain.PaymentParser
 import dev.suks.midas.domain.TxSource
 import dev.suks.midas.domain.TxType
 import java.time.Instant
@@ -90,6 +91,8 @@ data class EditTxState(
     val done: Boolean = false,
     /** Set when reviewing a captured payment: where it was read from. */
     val fromCapture: String? = null,
+    /** Opened from text shared by another app. */
+    val fromShare: Boolean = false,
 ) {
     val amountMinor: Long? get() = Money.parse(amountText, currency)?.takeIf { it > 0 }
     val visibleCategories: List<Category> get() = categories.filter { it.type == type }
@@ -100,6 +103,7 @@ class EditTransactionViewModel(
     private val c: AppContainer, private val id: Long, startAsIncome: Boolean,
     /** A captured payment being reviewed; saving marks it added. */
     private val captureId: Long = 0,
+    private val sharedText: String = "",
 ) : ViewModel() {
     private val _state = MutableStateFlow(EditTxState(type = if (startAsIncome) TxType.INCOME else TxType.EXPENSE))
     val state = _state.asStateFlow()
@@ -126,10 +130,23 @@ class EditTransactionViewModel(
                         date = Instant.ofEpochMilli(capture.receivedAt).atZone(c.clock.zone).toLocalDate(),
                         fromCapture = capture.source,
                     )
+                    sharedText.isNotBlank() -> prefillFromShare(base, sharedText)
                     else -> base
                 }
             }
         }
+    }
+
+    private suspend fun prefillFromShare(base: EditTxState, text: String): EditTxState {
+        val p = PaymentParser.parse(text, base.currency, lenient = true)
+            ?: return base.copy(note = text.trim().take(MAX_NOTE), fromShare = true)
+        return base.copy(
+            type = p.type, amountText = Money.toInput(p.amountMinor, base.currency), title = p.merchant.orEmpty(),
+            paymentMethod = p.method, categoryId = p.merchant?.let { c.transactions.lastCategoryFor(it, p.type) },
+            // Keep the original text when no payee was found, so nothing is lost.
+            note = if (p.merchant == null) text.trim().take(MAX_NOTE) else "",
+            fromShare = true,
+        )
     }
 
     fun setType(t: TxType) = _state.update { s ->
@@ -170,8 +187,8 @@ class EditTransactionViewModel(
 }
 
 @Composable
-fun EditTransactionScreen(id: Long, startAsIncome: Boolean, onDone: () -> Unit, captureId: Long = 0) {
-    val vm = midasViewModel(key = "tx-$id-$captureId") { EditTransactionViewModel(it, id, startAsIncome, captureId) }
+fun EditTransactionScreen(id: Long, startAsIncome: Boolean, onDone: () -> Unit, captureId: Long = 0, sharedText: String = "") {
+    val vm = midasViewModel(key = "tx-$id-$captureId-${sharedText.hashCode()}") { EditTransactionViewModel(it, id, startAsIncome, captureId, sharedText) }
     val state by vm.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.done) { if (state.done) onDone() }
     EditTransactionContent(
@@ -230,10 +247,12 @@ fun EditTransactionContent(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            state.fromCapture?.let { source ->
+            val readFrom = state.fromCapture ?: "shared text".takeIf { state.fromShare }
+            readFrom?.let { source ->
                 Text(
                     "Read from $source. Check the details, pick a category and save.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("read_from"),
                 )
             }
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -320,3 +339,5 @@ fun EditTransactionContent(
         ConfirmDialog("Delete transaction?", "This can't be undone.", "Delete", onDelete) { confirmDelete = false }
     }
 }
+
+private const val MAX_NOTE = 200

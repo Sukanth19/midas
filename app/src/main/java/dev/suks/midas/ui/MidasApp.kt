@@ -58,7 +58,13 @@ import kotlin.reflect.KClass
 @Serializable data class ListsRoute(val tab: Int = 0)
 @Serializable object BillsRoute
 @Serializable object InsightsRoute
-@Serializable data class EditTransactionRoute(val id: Long = 0, val income: Boolean = false, val captureId: Long = 0)
+@Serializable data class EditTransactionRoute(
+    val id: Long = 0,
+    val income: Boolean = false,
+    val captureId: Long = 0,
+    /** Text shared from another app, read for an amount and payee. */
+    val sharedText: String = "",
+)
 @Serializable object BudgetsRoute
 @Serializable object SettingsRoute
 @Serializable object CategoriesRoute
@@ -78,12 +84,15 @@ private val tabs = listOf(
  * rebuilt, so every screen and ViewModel starts fresh against the new workspace's data.
  */
 @Composable
-fun MidasApp(workspaceKey: String = "", pendingAction: String? = null, onActionHandled: () -> Unit = {}) {
-    key(workspaceKey) { MidasNav(pendingAction, onActionHandled) }
+fun MidasApp(
+    workspaceKey: String = "", pendingAction: String? = null, onActionHandled: () -> Unit = {},
+    sharedText: String? = null, onShareHandled: () -> Unit = {},
+) {
+    key(workspaceKey) { MidasNav(pendingAction, onActionHandled, sharedText, onShareHandled) }
 }
 
 @Composable
-private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit) {
+private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit, sharedText: String?, onShareHandled: () -> Unit) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val destination = entry?.destination
@@ -98,6 +107,12 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit) {
             else -> return@LaunchedEffect
         }
         onActionHandled()
+    }
+
+    LaunchedEffect(sharedText) {
+        if (sharedText == null) return@LaunchedEffect
+        nav.navigate(EditTransactionRoute(sharedText = sharedText))
+        onShareHandled()
     }
 
     Scaffold(
@@ -150,7 +165,7 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit) {
             composable<InsightsRoute> { InsightsScreen(onBudgets = { nav.navigate(BudgetsRoute) }) }
             composable<EditTransactionRoute> {
                 val r = it.toRoute<EditTransactionRoute>()
-                EditTransactionScreen(id = r.id, startAsIncome = r.income, onDone = { nav.popBackStack() }, captureId = r.captureId)
+                EditTransactionScreen(id = r.id, startAsIncome = r.income, onDone = { nav.popBackStack() }, captureId = r.captureId, sharedText = r.sharedText)
             }
             composable<BudgetsRoute> { BudgetsScreen(onBack = { nav.popBackStack() }) }
             composable<SettingsRoute> { SettingsScreen(onBack = { nav.popBackStack() }, onCategories = { nav.navigate(CategoriesRoute) }) }

@@ -44,10 +44,14 @@ object PaymentParser {
     private val paidBy = Regex("""\b(?:from vpa|by vpa|from|by)\s+$NAME$NAME_END""", RegexOption.IGNORE_CASE)
     private val senderFirst = Regex("""^$NAME\s+(?:paid|sent) you\b""", RegexOption.IGNORE_CASE)
 
-    fun parse(text: String, currency: String = "INR"): ParsedPayment? {
+    /**
+     * [lenient] is for text the user shared on purpose ("Payment successful ₹450 to Swiggy"): nothing
+     * is filtered out, and with no clear direction it's taken as an expense.
+     */
+    fun parse(text: String, currency: String = "INR", lenient: Boolean = false): ParsedPayment? {
         val clean = text.replace(Regex("\\s+"), " ").trim()
         val lower = clean.lowercase()
-        if (ignore.any { it in lower }) return null
+        if (!lenient && ignore.any { it in lower }) return null
 
         val amountText = (amountWithCurrency.find(clean) ?: amountAfterVerb.find(clean))?.groupValues?.get(1) ?: return null
         val amount = Money.parse(amountText.replace(",", ""), currency)?.takeIf { it > 0 } ?: return null
@@ -60,6 +64,7 @@ object PaymentParser {
                 when {
                     debitAt != null && (creditAt == null || debitAt < creditAt) -> TxType.EXPENSE
                     creditAt != null -> TxType.INCOME
+                    lenient -> TxType.EXPENSE
                     else -> return null
                 }
             }

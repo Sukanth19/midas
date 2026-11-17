@@ -27,6 +27,8 @@ class MainActivity : FragmentActivity() {
 
     /** Set by widgets / app shortcuts; MidasApp consumes it and resets it. */
     private val pendingAction = mutableStateOf<String?>(null)
+    /** Text shared into Midas from another app, to be turned into an expense. */
+    private val pendingShare = mutableStateOf<String?>(null)
 
     /** Lives in the Application so rotating the screen doesn't lock the app again. */
     private val appLock get() = (application as MidasApplication).appLock
@@ -41,10 +43,7 @@ class MainActivity : FragmentActivity() {
         )
         super.onCreate(savedInstanceState)
         val app = application as MidasApplication
-        if (savedInstanceState == null) {
-            openWorkspaceFrom(intent)
-            pendingAction.value = intent?.action
-        }
+        if (savedInstanceState == null) handleLaunch(intent)
         if (intent?.getBooleanExtra("seed_demo", false) == true && DemoData.allowed(this)) {
             val container = app.container
             app.appScope.launch { DemoData.seed(container) }
@@ -68,6 +67,8 @@ class MainActivity : FragmentActivity() {
                         workspaceKey = workspaceId,
                         pendingAction = pendingAction.value,
                         onActionHandled = { pendingAction.value = null },
+                        sharedText = pendingShare.value,
+                        onShareHandled = { pendingShare.value = null },
                     )
                     if (showLock.value) LockScreen(onUnlock = ::promptUnlock)
                 }
@@ -101,8 +102,17 @@ class MainActivity : FragmentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        handleLaunch(intent)
+    }
+
+    private fun handleLaunch(intent: Intent?) {
         openWorkspaceFrom(intent)
-        pendingAction.value = intent.action
+        if (intent?.action == Intent.ACTION_SEND) {
+            pendingShare.value = intent.getStringExtra(Intent.EXTRA_TEXT)?.take(MAX_SHARED_TEXT)?.takeIf { it.isNotBlank() }
+            pendingAction.value = null
+        } else {
+            pendingAction.value = intent?.action
+        }
     }
 
     /** Bill reminders say which workspace they belong to; tapping one opens that workspace. */
@@ -117,5 +127,6 @@ class MainActivity : FragmentActivity() {
         const val ACTION_OPEN_GROCERIES = "dev.suks.midas.OPEN_GROCERIES"
         const val ACTION_OPEN_BILLS = "dev.suks.midas.OPEN_BILLS"
         const val ACTION_OPEN_HOME = "dev.suks.midas.OPEN_HOME"
+        private const val MAX_SHARED_TEXT = 1_000
     }
 }
