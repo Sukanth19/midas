@@ -33,6 +33,13 @@ Everything stays on your phone: there are no accounts, no cloud and no tracking.
 
 There's also a 1×1 **Quick add** widget. Grocery items can be ticked off right on the home screen. The widget picker shows a live preview of the real widget on Android 15+, a layout preview on Android 12–14, and rendered images (light and dark) on older versions. Long-press the app icon for shortcuts to add an expense, open groceries or open bills.
 
+### Works with pupdr and Velto
+
+Midas is part of a small set of apps that work together on your phone, with no account or cloud involved:
+
+- **[pupdr](https://github.com/Sukanth19/pupdr)** (gym tracker) can add supplements like creatine or whey to your **buy list**, and its reports show what you've spent on the gym and supplements this period. That covers expenses in a category such as *Health*, *Fitness* or *Gym*, or with a title like "whey" or "gym membership".
+- Only pupdr and Velto, signed with their known certificates, can talk to Midas. Other apps can't. It works on the open workspace.
+
 ## Install
 
 Download the latest `Midas-vX.Y.Z.apk` from **[Releases](../../releases)**, open it on your phone and allow installing from your browser or file manager. It needs Android 8.0 or newer. Updates install over the top and keep your data.

@@ -48,5 +48,17 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_quickadd_info" />
         </receiver>
+
+        <!-- pupdr calls this to add supplements to the buy list and read gym spending;
+             callers are checked against pinned signing certificates (see ecosystem/Ecosystem.kt) -->
+        <provider
+            android:name=".ecosystem.EcosystemProvider"
+            android:authorities="${applicationId}.ecosystem"
+            android:exported="true" />
     </application>
+
+    <queries>
+        <package android:name="dev.suks.pupdr" />
+        <package android:name="com.suks.velto" />
+    </queries>
 </manifest>
