@@ -2,11 +2,13 @@ package dev.suks.midas.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
-import androidx.compose.material3.Typography
+import androidx.compose.material3.MotionScheme
+import dev.suks.midas.ui.suite.SuiteFontFamily
+import dev.suks.midas.ui.suite.SuiteShapes
+import dev.suks.midas.ui.suite.SuiteTypography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -19,7 +21,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.suks.midas.domain.ThemeMode
 
@@ -76,29 +77,23 @@ val LocalMoneyColors = staticCompositionLocalOf { LightMoney }
 /** Tabular figures so columns of amounts line up and numbers don't jiggle when they change. */
 private const val TNUM = "tnum"
 
-private val base = Typography()
-val MidasTypography = Typography(
-    displayLarge = base.displayLarge.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
-    displayMedium = base.displayMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM, letterSpacing = (-0.5).sp),
-    displaySmall = base.displaySmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM, letterSpacing = (-0.25).sp),
-    headlineLarge = base.headlineLarge.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
-    headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
-    headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
-    titleLarge = base.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-    titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
-    titleSmall = base.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-    labelLarge = base.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-    bodyLarge = base.bodyLarge.copy(fontFeatureSettings = TNUM),
-    bodyMedium = base.bodyMedium.copy(fontFeatureSettings = TNUM),
-)
+/** Velto's type scale (Plus Jakarta Sans) with tabular figures where amounts are shown. */
+val MidasTypography = SuiteTypography.let { t ->
+    t.copy(
+        displayLarge = t.displayLarge.copy(fontFeatureSettings = TNUM),
+        displayMedium = t.displayMedium.copy(fontFeatureSettings = TNUM),
+        displaySmall = t.displaySmall.copy(fontFeatureSettings = TNUM),
+        headlineLarge = t.headlineLarge.copy(fontFeatureSettings = TNUM),
+        headlineMedium = t.headlineMedium.copy(fontFeatureSettings = TNUM),
+        headlineSmall = t.headlineSmall.copy(fontFeatureSettings = TNUM),
+        titleMedium = t.titleMedium.copy(fontFeatureSettings = TNUM),
+        bodyLarge = t.bodyLarge.copy(fontFeatureSettings = TNUM),
+        bodyMedium = t.bodyMedium.copy(fontFeatureSettings = TNUM),
+    )
+}
 
-val MidasShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp),
-)
+/** Velto's rounder corners. */
+val MidasShapes = SuiteShapes
 
 @Composable
 fun isDark(mode: ThemeMode): Boolean = when (mode) {
@@ -122,7 +117,8 @@ fun MidasTheme(
         else -> LightColors
     }
     CompositionLocalProvider(LocalMoneyColors provides if (dark) DarkMoney else LightMoney) {
-        MaterialTheme(colorScheme = colors, typography = MidasTypography, shapes = MidasShapes, content = content)
+        // Velto's expressive theme: springy motion, rounder shapes, Plus Jakarta Sans
+        MaterialExpressiveTheme(colorScheme = colors, motionScheme = MotionScheme.expressive(), typography = MidasTypography, shapes = MidasShapes, content = content)
     }
 }
 
@@ -130,4 +126,4 @@ val MaterialTheme.money: MoneyColors
     @Composable get() = LocalMoneyColors.current
 
 /** Big hero amount style used on the dashboard. */
-val HeroAmount = TextStyle(fontSize = 44.sp, lineHeight = 50.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM, letterSpacing = (-1).sp)
+val HeroAmount = TextStyle(fontFamily = SuiteFontFamily, fontSize = 44.sp, lineHeight = 50.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM, letterSpacing = (-1).sp)
