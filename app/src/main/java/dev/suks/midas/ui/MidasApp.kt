@@ -1,12 +1,11 @@
 package dev.suks.midas.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavDestination
+import dev.suks.midas.ui.suite.NavBarItem
+import dev.suks.midas.ui.suite.SuiteNavBar
+import dev.suks.midas.ui.suite.SuiteTransitions
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -20,9 +19,6 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.SwapVert
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -118,18 +114,18 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit, shared
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         bottomBar = {
-            AnimatedVisibility(onTab, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
-                NavigationBar {
-                    tabs.forEach { tab ->
-                        val selected = destination?.hierarchy?.any { it.hasRoute(tab.routeClass) } == true
-                        NavigationBarItem(
-                            selected = selected,
+            if (onTab) {
+                SuiteNavBar(
+                    tabs.map { tab ->
+                        NavBarItem(
+                            label = tab.label,
+                            icon = tab.icon,
+                            selectedIcon = tab.selectedIcon,
+                            selected = destination?.hierarchy?.any { it.hasRoute(tab.routeClass) } == true,
                             onClick = { nav.switchTab(tab.route) },
-                            icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = null) },
-                            label = { Text(tab.label) },
                         )
                     }
-                }
+                )
             }
         },
     ) { padding ->
@@ -137,10 +133,10 @@ private fun MidasNav(pendingAction: String?, onActionHandled: () -> Unit, shared
             navController = nav,
             startDestination = HomeRoute,
             modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
-            enterTransition = { fadeIn() + slideInHorizontally { it / 12 } },
-            exitTransition = { fadeOut() },
-            popEnterTransition = { fadeIn() },
-            popExitTransition = { fadeOut() + slideOutHorizontally { it / 12 } },
+            enterTransition = { if (isTabSwitch()) SuiteTransitions.tabEnter else SuiteTransitions.pushEnter },
+            exitTransition = { if (isTabSwitch()) SuiteTransitions.tabExit else SuiteTransitions.pushExit },
+            popEnterTransition = { if (isTabSwitch()) SuiteTransitions.tabEnter else SuiteTransitions.popEnter },
+            popExitTransition = { if (isTabSwitch()) SuiteTransitions.tabExit else SuiteTransitions.popExit },
         ) {
             composable<HomeRoute> {
                 HomeScreen(
@@ -184,3 +180,8 @@ private fun NavHostController.switchTab(route: Any) {
         restoreState = true
     }
 }
+
+private fun NavDestination.isTab(): Boolean = tabs.any { t -> hierarchy.any { it.hasRoute(t.routeClass) } }
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boolean =
+    initialState.destination.isTab() && targetState.destination.isTab()
